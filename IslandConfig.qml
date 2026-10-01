@@ -11,7 +11,7 @@ Singleton {
   property int widthCollapsed: 84
   property int widthExpanded: 230
   property int heightCollapsed: 32
-  property int heightExpanded: 64 // minimum; expanded height auto-sizes to the view
+  property int heightExpanded: 128 // minimum; expanded height auto-sizes to the view
   property int radiusCollapsed: 16
   property int radiusExpanded: 26
   property int topMargin: 7
@@ -26,8 +26,8 @@ Singleton {
   property int dateSize: 12
 
   // Motion (ms)
-  property int animationDuration: 240
-  property int workspaceDisplayDuration: 1500 // hold the workspace number before swapping back to the clock
+  property int animationDuration: 400
+  property int workspaceDisplayDuration: 1000 // hold the workspace number before swapping back to the clock
 
   // Colours
   property color background: "#0d0d0d"

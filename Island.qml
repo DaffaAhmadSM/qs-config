@@ -78,11 +78,30 @@ PanelWindow {
     top: true
     left: true
     right: true
+    bottom: true
   }
 
-  // Tall enough for the expanded state; transparent area is click-through.
-  implicitHeight: Math.round(IslandConfig.topMargin * root.uiScale) + root.expandedContentHeight
-  mask: Region { item: pill }
+  // Grab the keyboard only while open, so Escape can close it.
+  focusable: root.expanded
+
+  // Collapsed: only the pill is clickable. Expanded: the whole surface is, so an
+  // outside click closes the island (and blocks apps underneath while open).
+  mask: root.expanded ? dismissRegion : pillRegion
+  Region { id: pillRegion; item: pill }
+  Region { id: dismissRegion; item: dismissCatcher }
+
+  Shortcut {
+    sequence: "Escape"
+    enabled: root.expanded
+    onActivated: root.expanded = false
+  }
+
+  MouseArea {
+    id: dismissCatcher
+    anchors.fill: parent
+    enabled: root.expanded
+    onClicked: root.expanded = false
+  }
 
   Rectangle {
     id: pill
@@ -101,10 +120,11 @@ PanelWindow {
     Behavior on height { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutBack } }
     Behavior on radius { NumberAnimation { duration: IslandConfig.animationDuration } }
 
-    // Declared first so future view controls sit above and win the click.
+    // Open only; closing is done by clicking outside or pressing Escape. Sits
+    // above the dismiss catcher so a pill click never closes the island.
     MouseArea {
       anchors.fill: parent
-      onClicked: root.expanded = !root.expanded
+      onClicked: root.expanded = true
     }
 
     Item {
@@ -128,8 +148,8 @@ PanelWindow {
           Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
 
           transform: Translate {
-            y: root.showingWorkspace ? -clockFace.height : 0
-            Behavior on y { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutBack } }
+              x: root.showingWorkspace ? -clockFace.width : 0
+            Behavior on x { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutBack } }
           }
 
           Text {
@@ -149,8 +169,8 @@ PanelWindow {
           Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
 
           transform: Translate {
-            y: root.showingWorkspace ? 0 : workspaceFace.height
-            Behavior on y { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutBack } }
+              x: root.showingWorkspace ? 0 : workspaceFace.width
+            Behavior on x { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutBack } }
           }
 
           Text {
