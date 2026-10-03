@@ -25,8 +25,31 @@ Singleton {
   property int clockExpandedSize: 30
   property int dateSize: 12
 
+  // View navigation header
+  property int headerHeight: 16
+  property int headerSize: 12
+  property int headerSpacing: 12
+  property int arrowSize: 22
+
+  // Side navigation
+  property int navTargetWidth: 30 // width of each clickable side strip
+  property int navMargin: 4       // inset of the hover background from the pill edge
+  property int navGap: 8          // space between an arrow and the content
+  property real navFeedbackOpacity: 0.12
+  property bool navSeparator: false
+  property real navSeparatorOpacity: 0.2
+
+  // Media view
+  property int mediaArtSize: 48
+  property int mediaTitleSize: 14
+  property int mediaArtistSize: 11
+  property int mediaControlSize: 16
+  property int mediaControlSpacing: 16
+  property int mediaSpacing: 6
+  property bool mediaAutoPriority: true // jump to MEDIA when something starts playing
+
   // Motion (ms)
-  property int animationDuration: 400
+  property int animationDuration: 245
   property int workspaceDisplayDuration: 1000 // hold the workspace number before swapping back to the clock
 
   // Colours
