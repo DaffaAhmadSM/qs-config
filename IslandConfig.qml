@@ -73,7 +73,7 @@ Singleton {
   property bool mediaAutoPriority: true // jump to MEDIA when something starts playing
 
   // Motion (ms)
-  property int animationDuration: 200
+  property int animationDuration: 240
   property int workspaceDisplayDuration: 1000 // hold the workspace number before swapping back to the clock
 
   // Colours

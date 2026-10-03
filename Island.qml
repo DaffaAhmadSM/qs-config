@@ -1,8 +1,8 @@
 // Island.qml
 // One dynamic island per monitor. Visible only on the compositor's focused
-// monitor. Collapsed it shows the clock (or the workspace briefly); clicking
-// zooms it open to the active view. Views are cross-faded by two Loaders and
-// both unload when collapsed. All sizing/colours come from IslandConfig.
+// monitor. A single content node is swapped between the collapsed bar (clock /
+// workspace, with the hover split chips) and the expanded island (nav + view),
+// so only one is ever instantiated. All sizing/colours come from IslandConfig.
 //
 // Adding an expanded view: create <Name>View.qml with a `required property
 // real uiScale` and a natural implicitHeight, then add a Component, a name and
@@ -53,34 +53,54 @@ PanelWindow {
   }
   readonly property bool mediaPlaying: Mpris.players.values.some(p => p.isPlaying)
 
-  // ---- Cross-fade host ----
-  // One loader shows the current view while the other fades in the incoming
-  // one; the outgoing loader is unloaded once the fade finishes.
-  property bool frontIsA: true
-  readonly property var activeLoader: root.frontIsA ? loaderA : loaderB
-  readonly property var inactiveLoader: root.frontIsA ? loaderB : loaderA
-
-  readonly property real viewHeight: root.activeLoader.implicitHeight
+  // ---- Layout metrics ----
   readonly property real headerHeight: Math.round(IslandConfig.headerHeight * root.uiScale)
   // View width, leaving room for the side navigation strips.
   readonly property real contentWidth: Math.round(
     (IslandConfig.widthExpanded - 2 * IslandConfig.navTargetWidth) * root.uiScale)
+  // Reported by the expanded content while it is loaded.
+  property real expandedViewHeight: 0
   readonly property real expandedContentHeight: Math.max(
     IslandConfig.heightExpanded * root.uiScale,
     root.headerHeight
       + Math.round(IslandConfig.mediaSpacing * root.uiScale)
-      + root.viewHeight
+      + root.expandedViewHeight
       + 2 * Math.round(IslandConfig.expandedPaddingY * root.uiScale)
   )
 
   // ---- Collapsed bar split ----
-  // The bar keeps a fixed widthCollapsed; hovering redistributes it into a
-  // shrinking clock segment plus notif/tray chips, so there is never a gap
-  // boundary to lose the hover.
+  readonly property bool trayLeft: IslandConfig.trayBubbleSide === "left"
+  readonly property bool notifLeft: IslandConfig.notifBubbleSide === "left"
+  readonly property real collapsedW: Math.round(IslandConfig.widthCollapsed * root.uiScale)
+  readonly property real segGap: Math.round(IslandConfig.bubbleSegmentGap * root.uiScale)
+  readonly property int chipCount: 2
+  readonly property real gapTotal: root.collapsedHovered ? root.chipCount * root.segGap : 0
+  readonly property real avail: root.collapsedW - root.gapTotal
+  readonly property real chipW: root.collapsedHovered
+    ? Math.round(root.avail * IslandConfig.hoverBubbleFraction) : 0
+  readonly property int leftCount: (root.trayLeft ? 1 : 0) + (root.notifLeft ? 1 : 0)
+  readonly property int rightCount: root.chipCount - root.leftCount
+  readonly property real leftPanelW: root.collapsedHovered ? root.leftCount * (root.chipW + root.segGap) : 0
+  readonly property real rightPanelW: root.collapsedHovered ? root.rightCount * (root.chipW + root.segGap) : 0
+  readonly property real clockW: root.collapsedW - root.leftPanelW - root.rightPanelW
+
+  // While true the island is mid open/close morph; the hover split is deferred
+  // until it settles so the split layout never overlaps the morph.
+  property bool morphing: false
+
   // Whether the bar *should* be in its hovered (split) state. The state itself
   // is debounced on unhover so it doesn't snap back instantly.
-  readonly property bool hoverWanted: !root.expanded && (barHover.hovered || root.trayOpen)
+  readonly property bool hoverWanted: !root.expanded && !root.morphing && (barHover.hovered || root.trayOpen)
   property bool collapsedHovered: false
+
+  // Animated 0..1 factor for the hover split: the clock box interpolates
+  // between the pill geometry (0) and the split geometry (1).
+  property real split: root.collapsedHovered ? 1 : 0
+  Behavior on split { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutCubic } }
+
+  // Set by the collapsed content, used by the tray tooltip.
+  property bool trayHovered: false
+  property real trayChipCenterX: 0
 
   onHoverWantedChanged: {
     if (root.hoverWanted) {
@@ -91,22 +111,6 @@ PanelWindow {
     }
   }
 
-  readonly property real collapsedW: Math.round(IslandConfig.widthCollapsed * root.uiScale)
-  readonly property real segGap: Math.round(IslandConfig.bubbleSegmentGap * root.uiScale)
-  readonly property int chipCount: 2
-  readonly property real gapTotal: root.collapsedHovered ? root.chipCount * root.segGap : 0
-  readonly property real avail: root.collapsedW - root.gapTotal
-  readonly property real chipW: root.collapsedHovered
-    ? Math.round(root.avail * IslandConfig.hoverBubbleFraction) : 0
-
-  readonly property bool trayLeft: IslandConfig.trayBubbleSide === "left"
-  readonly property bool notifLeft: IslandConfig.notifBubbleSide === "left"
-  readonly property int leftCount: (root.trayLeft ? 1 : 0) + (root.notifLeft ? 1 : 0)
-  readonly property int rightCount: root.chipCount - root.leftCount
-  readonly property real leftPanelW: root.collapsedHovered ? root.leftCount * (root.chipW + root.segGap) : 0
-  readonly property real rightPanelW: root.collapsedHovered ? root.rightCount * (root.chipW + root.segGap) : 0
-  readonly property real clockW: root.collapsedW - root.leftPanelW - root.rightPanelW
-
   function nextView(): void {
     activeView = (activeView + 1) % root.viewComponents.length
   }
@@ -115,52 +119,31 @@ PanelWindow {
     activeView = (activeView - 1 + root.viewComponents.length) % root.viewComponents.length
   }
 
-  function applyView(animate: bool): void {
-    const target = root.viewComponents[root.activeView]
-    if (!animate || !root.expanded) {
-      root.activeLoader.sourceComponent = target
-      root.activeLoader.opacity = 1
-      root.inactiveLoader.sourceComponent = null
-      return
-    }
-    const incoming = root.inactiveLoader
-    const outgoing = root.activeLoader
-    incoming.sourceComponent = target
-    incoming.opacity = 1
-    outgoing.opacity = 0
-    root.frontIsA = !root.frontIsA
-    swapDone.restart()
-  }
-
-  Component.onCompleted: {
-    root.lastWorkspace = Hyprland.focusedWorkspace
-    root.activeLoader.sourceComponent = root.viewComponents[root.activeView]
-    root.activeLoader.opacity = 1
-  }
-
-  onActiveViewChanged: root.applyView(true)
+  Component.onCompleted: root.lastWorkspace = Hyprland.focusedWorkspace
 
   onExpandedChanged: {
-    if (root.expanded)
+    root.morphing = true
+    morphDone.restart()
+    if (root.expanded) {
       root.collapsedHovered = false
       root.trayOpen = false
-    if (!root.expanded) {
-        if (!IslandConfig.mediaAutoPriority || !root.mediaPlaying)
-            root.activeView = 0
-        else
-            root.activeView = root.mediaIndex
+      root.trayHovered = false
+      if (IslandConfig.mediaAutoPriority && root.mediaPlaying)
+        root.activeView = root.mediaIndex
       return
     }
-    root.applyView(false)
-    if (IslandConfig.mediaAutoPriority && root.mediaPlaying){
+    root.trayHovered = false
+    if (!IslandConfig.mediaAutoPriority || !root.mediaPlaying)
+      root.activeView = 0
+    else
       root.activeView = root.mediaIndex
-    }
   }
 
+  // Clears the morph guard once the open/close animation has settled.
   Timer {
-    id: swapDone
+    id: morphDone
     interval: IslandConfig.animationDuration
-    onTriggered: root.inactiveLoader.sourceComponent = null
+    onTriggered: root.morphing = false
   }
 
   // Delay before the hovered bar retracts after the cursor leaves / the tray
@@ -252,6 +235,294 @@ PanelWindow {
     }
   }
 
+  // ---- Swappable content: exactly one of these is instantiated ----
+
+  // Collapsed bar.
+  Component {
+    id: collapsedContent
+
+    Item {
+      id: collapsedRoot
+      anchors.fill: parent
+
+      // Expose the tray chip position for the tooltip.
+      Binding { target: root; property: "trayChipCenterX"; value: trayChip.x + trayChip.width / 2 }
+
+      // Clock segment. Idle (split 0) it is exactly the pill; on hover (split
+      // 1) it shrinks to clockW and the chips appear.
+      Rectangle {
+        id: clockSegment
+        x: root.leftPanelW * root.split
+        width: parent.width + (root.clockW - parent.width) * root.split
+        height: parent.height
+        radius: pill.radius + (Math.round(IslandConfig.radiusCollapsed * root.uiScale) - pill.radius) * root.split
+        color: IslandConfig.background
+        clip: true
+
+        // Clock face; slides up and fades out while the workspace shows.
+        Item {
+          id: clockFace
+          anchors.fill: parent
+          opacity: root.showingWorkspace ? 0 : 1
+          Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
+
+          transform: Translate {
+            y: root.showingWorkspace ? -clockFace.height : 0
+            Behavior on y { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutBack } }
+          }
+
+          Text {
+            anchors.centerIn: parent
+            text: Time.time
+            color: IslandConfig.foreground
+            font.bold: true
+            font.pixelSize: Math.round(IslandConfig.clockCollapsedSize * root.uiScale)
+          }
+        }
+
+        // Workspace face; slides in from below on workspace change.
+        Item {
+          id: workspaceFace
+          anchors.fill: parent
+          opacity: root.showingWorkspace ? 1 : 0
+          Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
+
+          transform: Translate {
+            y: root.showingWorkspace ? 0 : workspaceFace.height
+            Behavior on y { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutBack } }
+          }
+
+          Text {
+            anchors.centerIn: parent
+            text: Hyprland.focusedWorkspace?.name ?? ""
+            color: IslandConfig.foreground
+            font.bold: true
+            font.pixelSize: Math.round(IslandConfig.clockCollapsedSize * root.uiScale)
+          }
+        }
+      }
+
+      // Notification chip
+      BubbleChip {
+        id: notifChip
+        width: root.chipW
+        shown: root.collapsedHovered
+        x: root.notifLeft
+          ? root.leftPanelW - root.chipW - root.segGap
+          : root.collapsedW - root.rightPanelW + root.segGap
+      }
+
+      // Tray chip
+      BubbleChip {
+        id: trayChip
+        width: root.chipW
+        shown: root.collapsedHovered
+        tray: true
+
+        readonly property int order: root.trayLeft === root.notifLeft ? 1 : 0
+
+        x: root.trayLeft
+          ? root.leftPanelW - (order + 1) * (root.chipW + root.segGap)
+          : root.collapsedW - root.rightPanelW + order * (root.chipW + root.segGap) + root.segGap
+
+        MouseArea {
+          anchors.fill: parent
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onContainsMouseChanged: root.trayHovered = containsMouse
+          onClicked: root.trayOpen = true
+        }
+      }
+    }
+  }
+
+  // Expanded island.
+  Component {
+    id: expandedContent
+
+    Item {
+      id: expandedRoot
+      anchors.fill: parent
+
+      property bool frontIsA: true
+      readonly property var activeLoader: expandedRoot.frontIsA ? loaderA : loaderB
+      readonly property var inactiveLoader: expandedRoot.frontIsA ? loaderB : loaderA
+      readonly property real viewHeight: expandedRoot.activeLoader.implicitHeight
+
+      function applyView(animate) {
+        const target = root.viewComponents[root.activeView]
+        if (!animate) {
+          expandedRoot.activeLoader.sourceComponent = target
+          expandedRoot.activeLoader.opacity = 1
+          expandedRoot.inactiveLoader.sourceComponent = null
+          return
+        }
+        const incoming = expandedRoot.inactiveLoader
+        const outgoing = expandedRoot.activeLoader
+        incoming.sourceComponent = target
+        incoming.opacity = 1
+        outgoing.opacity = 0
+        expandedRoot.frontIsA = !expandedRoot.frontIsA
+        swapDone.restart()
+      }
+
+      Component.onCompleted: expandedRoot.applyView(false)
+
+      Connections {
+        target: root
+        function onActiveViewChanged(): void { expandedRoot.applyView(true) }
+      }
+
+      // Report our height so the pill can size itself.
+      Binding { target: root; property: "expandedViewHeight"; value: expandedRoot.viewHeight }
+
+      Timer {
+        id: swapDone
+        interval: IslandConfig.animationDuration
+        onTriggered: expandedRoot.inactiveLoader.sourceComponent = null
+      }
+
+      // Content block: title above the active view.
+      Item {
+        id: viewColumn
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: Math.round(IslandConfig.expandedPaddingY * root.uiScale)
+        width: root.contentWidth
+        height: viewTitle.height + viewHost.height + Math.round(IslandConfig.mediaSpacing * root.uiScale)
+
+        Text {
+          id: viewTitle
+          width: parent.width
+          height: root.headerHeight
+          verticalAlignment: Text.AlignVCenter
+          horizontalAlignment: Text.AlignHCenter
+          text: root.activeViewName
+          color: IslandConfig.foreground
+          font.bold: true
+          font.pixelSize: Math.round(IslandConfig.headerSize * root.uiScale)
+        }
+
+        Item {
+          id: viewHost
+          anchors.top: viewTitle.bottom
+          anchors.topMargin: Math.round(IslandConfig.mediaSpacing * root.uiScale)
+          anchors.horizontalCenter: parent.horizontalCenter
+          width: parent.width
+          height: expandedRoot.viewHeight
+
+          Loader {
+            id: loaderA
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            width: parent.width
+            opacity: 0
+            Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
+          }
+
+          Loader {
+            id: loaderB
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            width: parent.width
+            opacity: 0
+            Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
+          }
+        }
+      }
+
+      // Side navigation: full-height clickable strips.
+      Item {
+        id: prevTarget
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: Math.round(IslandConfig.navTargetWidth * root.uiScale)
+
+        Rectangle {
+          anchors.fill: parent
+          anchors.margins: Math.round(IslandConfig.navMargin * root.uiScale)
+          radius: Math.round(IslandConfig.radiusCollapsed * root.uiScale)
+          color: IslandConfig.foreground
+          opacity: prevHover.pressed ? 0.18
+            : prevHover.containsMouse ? IslandConfig.navFeedbackOpacity : 0
+          Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
+        }
+
+        Text {
+          anchors.centerIn: parent
+          text: "❮"
+          color: IslandConfig.foreground
+          font.pixelSize: Math.round(IslandConfig.arrowSize * root.uiScale)
+        }
+
+        MouseArea {
+          id: prevHover
+          anchors.fill: parent
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: root.prevView()
+        }
+      }
+
+      Item {
+        id: nextTarget
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: Math.round(IslandConfig.navTargetWidth * root.uiScale)
+
+        Rectangle {
+          anchors.fill: parent
+          anchors.margins: Math.round(IslandConfig.navMargin * root.uiScale)
+          radius: Math.round(IslandConfig.radiusCollapsed * root.uiScale)
+          color: IslandConfig.foreground
+          opacity: nextHover.pressed ? 0.18
+            : nextHover.containsMouse ? IslandConfig.navFeedbackOpacity : 0
+          Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
+        }
+
+        Text {
+          anchors.centerIn: parent
+          text: "❯"
+          color: IslandConfig.foreground
+          font.pixelSize: Math.round(IslandConfig.arrowSize * root.uiScale)
+        }
+
+        MouseArea {
+          id: nextHover
+          anchors.fill: parent
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: root.nextView()
+        }
+      }
+
+      // Optional dividers between each strip and the content block.
+      Rectangle {
+        visible: IslandConfig.navSeparator
+        anchors.left: prevTarget.right
+        anchors.leftMargin: Math.round(IslandConfig.navGap / 2 * root.uiScale)
+        anchors.verticalCenter: parent.verticalCenter
+        width: 1
+        height: viewColumn.height
+        color: IslandConfig.foreground
+        opacity: IslandConfig.navSeparatorOpacity
+      }
+
+      Rectangle {
+        visible: IslandConfig.navSeparator
+        anchors.right: nextTarget.left
+        anchors.rightMargin: Math.round(IslandConfig.navGap / 2 * root.uiScale)
+        anchors.verticalCenter: parent.verticalCenter
+        width: 1
+        height: viewColumn.height
+        color: IslandConfig.foreground
+        opacity: IslandConfig.navSeparatorOpacity
+      }
+    }
+  }
+
   screen: root.monitor
   visible: root.focused
   color: "transparent"
@@ -317,7 +588,7 @@ PanelWindow {
     readonly property real pad: Math.round(IslandConfig.bubbleHoverPadding * root.uiScale)
     x: pill.x - pad
     y: pill.y - pad
-    width: root.collapsedW + 2 * pad
+    width: Math.max(root.collapsedW, pill.width) + 2 * pad
     height: pill.height + 2 * pad
   }
 
@@ -336,9 +607,10 @@ PanelWindow {
     // the expanded island paints it here.
     color: root.expanded ? IslandConfig.background : "transparent"
 
-    Behavior on width { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutBack } }
-    Behavior on height { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutBack } }
+    Behavior on width { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutCubic } }
+    Behavior on height { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutCubic } }
     Behavior on radius { NumberAnimation { duration: IslandConfig.animationDuration } }
+    Behavior on color { ColorAnimation { duration: IslandConfig.animationDuration } }
 
     // Open only; closing is done by clicking outside or pressing Escape. Sits
     // above the dismiss catcher so a pill click never closes the island.
@@ -363,249 +635,11 @@ PanelWindow {
       anchors.fill: parent
       clip: true
 
-      // Collapsed layer: fixed-width bar that splits into [clock][notif][tray]
-      // on hover. Each part paints its own background.
-      Item {
-        id: collapsedLayer
+      // Single content node: exactly one of collapsed/expanded is instantiated.
+      Loader {
+        id: contentLoader
         anchors.fill: parent
-        enabled: !root.expanded
-        opacity: root.expanded ? 0 : 1
-
-        // Clock segment (the "pill" when idle: full width).
-        Rectangle {
-          id: clockSegment
-          x: root.leftPanelW
-          width: root.clockW
-          height: parent.height
-          radius: Math.round(IslandConfig.radiusCollapsed * root.uiScale)
-          color: IslandConfig.background
-          clip: true
-          Behavior on x { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutCubic } }
-          Behavior on width { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutCubic } }
-
-          // Clock face; slides up and fades out while the workspace shows.
-          Item {
-            id: clockFace
-            anchors.fill: parent
-            opacity: root.showingWorkspace ? 0 : 1
-            Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
-
-            transform: Translate {
-              y: root.showingWorkspace ? -clockFace.height : 0
-              Behavior on y { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutBack } }
-            }
-
-            Text {
-              anchors.centerIn: parent
-              text: Time.time
-              color: IslandConfig.foreground
-              font.bold: true
-              font.pixelSize: Math.round(IslandConfig.clockCollapsedSize * root.uiScale)
-            }
-          }
-
-          // Workspace face; slides in from below on workspace change.
-          Item {
-            id: workspaceFace
-            anchors.fill: parent
-            opacity: root.showingWorkspace ? 1 : 0
-            Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
-
-            transform: Translate {
-              y: root.showingWorkspace ? 0 : workspaceFace.height
-              Behavior on y { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutBack } }
-            }
-
-            Text {
-              anchors.centerIn: parent
-              text: Hyprland.focusedWorkspace?.name ?? ""
-              color: IslandConfig.foreground
-              font.bold: true
-              font.pixelSize: Math.round(IslandConfig.clockCollapsedSize * root.uiScale)
-            }
-          }
-        }
-
-        // Notification chip
-        BubbleChip {
-          id: notifChip
-          width: root.chipW
-          shown: root.collapsedHovered
-          x: root.notifLeft
-            ? root.leftPanelW - root.chipW - root.segGap
-            : root.collapsedW - root.rightPanelW + root.segGap
-        }
-
-        // Tray chip
-        BubbleChip {
-          id: trayChip
-          width: root.chipW
-          shown: root.collapsedHovered
-          tray: true
-
-          readonly property int order: root.trayLeft === root.notifLeft ? 1 : 0
-
-          x: root.trayLeft
-            ? root.leftPanelW - (order + 1) * (root.chipW + root.segGap)
-            : root.collapsedW - root.rightPanelW + order * (root.chipW + root.segGap) + root.segGap
-
-          MouseArea {
-            id: trayHover
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.trayOpen = true
-          }
-        }
-      }
-
-      // Expanded layer: navigation header + cross-faded view host.
-      Item {
-        id: expandedLayer
-        anchors.fill: parent
-        enabled: root.expanded
-        opacity: root.expanded ? 1 : 0
-
-        // Content block: title above the active view.
-        Item {
-          id: viewColumn
-          anchors.horizontalCenter: parent.horizontalCenter
-          anchors.top: parent.top
-          anchors.topMargin: Math.round(IslandConfig.expandedPaddingY * root.uiScale)
-          width: root.contentWidth
-          height: viewTitle.height + viewHost.height + Math.round(IslandConfig.mediaSpacing * root.uiScale)
-
-          Text {
-            id: viewTitle
-            width: parent.width
-            height: root.headerHeight
-            verticalAlignment: Text.AlignVCenter
-            horizontalAlignment: Text.AlignHCenter
-            text: root.activeViewName
-            color: IslandConfig.foreground
-            font.bold: true
-            font.pixelSize: Math.round(IslandConfig.headerSize * root.uiScale)
-          }
-
-          Item {
-            id: viewHost
-            anchors.top: viewTitle.bottom
-            anchors.topMargin: Math.round(IslandConfig.mediaSpacing * root.uiScale)
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: parent.width
-            height: root.viewHeight
-
-            Loader {
-              id: loaderA
-              anchors.horizontalCenter: parent.horizontalCenter
-              anchors.top: parent.top
-              width: parent.width
-              active: root.expanded
-              opacity: 0
-              Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
-            }
-
-            Loader {
-              id: loaderB
-              anchors.horizontalCenter: parent.horizontalCenter
-              anchors.top: parent.top
-              width: parent.width
-              active: root.expanded
-              opacity: 0
-              Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
-            }
-          }
-        }
-
-        // Side navigation: full-height clickable strips.
-        Item {
-          id: prevTarget
-          anchors.left: parent.left
-          anchors.top: parent.top
-          anchors.bottom: parent.bottom
-          width: Math.round(IslandConfig.navTargetWidth * root.uiScale)
-
-          Rectangle {
-            anchors.fill: parent
-            anchors.margins: Math.round(IslandConfig.navMargin * root.uiScale)
-            radius: Math.round(IslandConfig.radiusCollapsed * root.uiScale)
-            color: IslandConfig.foreground
-            opacity: prevHover.pressed ? 0.18
-              : prevHover.containsMouse ? IslandConfig.navFeedbackOpacity : 0
-            Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
-          }
-
-          Text {
-            anchors.centerIn: parent
-            text: "❮"
-            color: IslandConfig.foreground
-            font.pixelSize: Math.round(IslandConfig.arrowSize * root.uiScale)
-          }
-
-          MouseArea {
-            id: prevHover
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.prevView()
-          }
-        }
-
-        Item {
-          id: nextTarget
-          anchors.right: parent.right
-          anchors.top: parent.top
-          anchors.bottom: parent.bottom
-          width: Math.round(IslandConfig.navTargetWidth * root.uiScale)
-
-          Rectangle {
-            anchors.fill: parent
-            anchors.margins: Math.round(IslandConfig.navMargin * root.uiScale)
-            radius: Math.round(IslandConfig.radiusCollapsed * root.uiScale)
-            color: IslandConfig.foreground
-            opacity: nextHover.pressed ? 0.18
-              : nextHover.containsMouse ? IslandConfig.navFeedbackOpacity : 0
-            Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
-          }
-
-          Text {
-            anchors.centerIn: parent
-            text: "❯"
-            color: IslandConfig.foreground
-            font.pixelSize: Math.round(IslandConfig.arrowSize * root.uiScale)
-          }
-
-          MouseArea {
-            id: nextHover
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.nextView()
-          }
-        }
-
-        // Optional dividers between each strip and the content block.
-        Rectangle {
-          visible: IslandConfig.navSeparator
-          anchors.left: prevTarget.right
-          anchors.leftMargin: Math.round(IslandConfig.navGap / 2 * root.uiScale)
-          anchors.verticalCenter: parent.verticalCenter
-          width: 1
-          height: viewColumn.height
-          color: IslandConfig.foreground
-          opacity: IslandConfig.navSeparatorOpacity
-        }
-
-        Rectangle {
-          visible: IslandConfig.navSeparator
-          anchors.right: nextTarget.left
-          anchors.rightMargin: Math.round(IslandConfig.navGap / 2 * root.uiScale)
-          anchors.verticalCenter: parent.verticalCenter
-          width: 1
-          height: viewColumn.height
-          color: IslandConfig.foreground
-          opacity: IslandConfig.navSeparatorOpacity
-        }
+        sourceComponent: root.expanded ? expandedContent : collapsedContent
       }
     }
   }
@@ -613,9 +647,9 @@ PanelWindow {
   // Tray chip tooltip.
   Rectangle {
     id: trayTooltip
-    opacity: trayHover.containsMouse && !root.expanded && !root.trayOpen && trayChip.shown ? 1 : 0
+    opacity: root.trayHovered && !root.expanded && !root.trayOpen && root.collapsedHovered ? 1 : 0
     Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
-    x: pill.x + trayChip.x + (trayChip.width - width) / 2
+    x: pill.x + root.trayChipCenterX - width / 2
     y: pill.y + pill.height + Math.round(IslandConfig.tooltipGap * root.uiScale)
     width: tooltipLabel.implicitWidth + 2 * Math.round(IslandConfig.tooltipPaddingX * root.uiScale)
     height: tooltipLabel.implicitHeight + 2 * Math.round(IslandConfig.tooltipPaddingY * root.uiScale)
