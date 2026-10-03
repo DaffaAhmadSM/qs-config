@@ -40,7 +40,7 @@ Singleton {
   property int bubbleRadius: 16
   property int bubbleSegmentGap: 6
   property int bubbleHoverPadding: 8 // hover tolerance around the bar (px)
-  property int bubbleHoverLatch: 150 // ms to keep hover after the cursor leaves
+  property int bubbleHoverLatch: 240 // ms to keep hover after the cursor leaves
 
   // Tray popup + tooltip
   property int trayPopupGap: 6
@@ -73,7 +73,7 @@ Singleton {
   property bool mediaAutoPriority: true // jump to MEDIA when something starts playing
 
   // Motion (ms)
-  property int animationDuration: 245
+  property int animationDuration: 200
   property int workspaceDisplayDuration: 1000 // hold the workspace number before swapping back to the clock
 
   // Colours

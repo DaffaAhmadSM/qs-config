@@ -77,8 +77,19 @@ PanelWindow {
   // The bar keeps a fixed widthCollapsed; hovering redistributes it into a
   // shrinking clock segment plus notif/tray chips, so there is never a gap
   // boundary to lose the hover.
-  property bool hoverLatch: false
-  readonly property bool collapsedHovered: !root.expanded && (barHover.hovered || root.hoverLatch || root.trayOpen)
+  // Whether the bar *should* be in its hovered (split) state. The state itself
+  // is debounced on unhover so it doesn't snap back instantly.
+  readonly property bool hoverWanted: !root.expanded && (barHover.hovered || root.trayOpen)
+  property bool collapsedHovered: false
+
+  onHoverWantedChanged: {
+    if (root.hoverWanted) {
+      root.collapsedHovered = true
+      hoverRelease.stop()
+    } else {
+      hoverRelease.restart()
+    }
+  }
 
   readonly property real collapsedW: Math.round(IslandConfig.widthCollapsed * root.uiScale)
   readonly property real segGap: Math.round(IslandConfig.bubbleSegmentGap * root.uiScale)
@@ -131,6 +142,7 @@ PanelWindow {
 
   onExpandedChanged: {
     if (root.expanded)
+      root.collapsedHovered = false
       root.trayOpen = false
     if (!root.expanded) {
         if (!IslandConfig.mediaAutoPriority || !root.mediaPlaying)
@@ -151,24 +163,12 @@ PanelWindow {
     onTriggered: root.inactiveLoader.sourceComponent = null
   }
 
-  // Keep the bar open briefly after the cursor leaves, so crossing a segment
-  // gap can't collapse it mid-move.
+  // Delay before the hovered bar retracts after the cursor leaves / the tray
+  // closes, so crossing a gap doesn't collapse it mid-move.
   Timer {
     id: hoverRelease
     interval: IslandConfig.bubbleHoverLatch
-    onTriggered: root.hoverLatch = false
-  }
-
-  Connections {
-    target: barHover
-    function onHoveredChanged(): void {
-      if (barHover.hovered) {
-        root.hoverLatch = true
-        hoverRelease.stop()
-      } else {
-        hoverRelease.restart()
-      }
-    }
+    onTriggered: root.collapsedHovered = false
   }
 
   Timer {
