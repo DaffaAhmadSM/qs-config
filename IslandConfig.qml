@@ -8,13 +8,13 @@ import Quickshell
 
 Singleton {
   // Sizes (px)
-  property int widthCollapsed: 84
-  property int widthExpanded: 230
+  property int widthCollapsed: 200
+  property int widthExpanded: 400
   property int heightCollapsed: 32
   property int heightExpanded: 128 // minimum; expanded height auto-sizes to the view
   property int radiusCollapsed: 16
   property int radiusExpanded: 26
-  property int topMargin: 7
+  property int topMargin: 2
 
   // Inner padding of the expanded view
   property int expandedPaddingX: 16
@@ -30,6 +30,30 @@ Singleton {
   property int headerSize: 12
   property int headerSpacing: 12
   property int arrowSize: 22
+
+  // Collapsed hover: the bar splits into [clock][chips] within widthCollapsed.
+  property string trayBubbleSide: "right"  // "left" | "right"
+  property string notifBubbleSide: "right" // "left" | "right"
+  property real hoverPillFraction: 0.6
+  property real hoverBubbleFraction: 0.2
+  property int bubbleIconSize: 18
+  property int bubbleRadius: 16
+  property int bubbleSegmentGap: 6
+  property int bubbleHoverPadding: 8 // hover tolerance around the bar (px)
+  property int bubbleHoverLatch: 150 // ms to keep hover after the cursor leaves
+
+  // Tray popup + tooltip
+  property int trayPopupGap: 6
+  property int trayPopupPadding: 6
+  property int trayPopupRadius: 14
+  property int trayItemSize: 24
+  property int trayItemSpacing: 6
+  property int trayPopupMaxHeight: 260
+  property int tooltipGap: 6
+  property int tooltipPaddingX: 7
+  property int tooltipPaddingY: 3
+  property int tooltipRadius: 10
+  property int tooltipSize: 12
 
   // Side navigation
   property int navTargetWidth: 30 // width of each clickable side strip
