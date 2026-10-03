@@ -12,7 +12,7 @@ PopupWindow {
 
   required property var parentWindow
   required property Item bar
-  required property string side
+  required property real anchorCenterX
   required property bool open
   required property real uiScale
 
@@ -23,9 +23,8 @@ PopupWindow {
   readonly property real maxList: Math.round(IslandConfig.trayPopupMaxHeight * root.uiScale)
 
   anchor.window: root.parentWindow
-  anchor.rect.x: root.side === "left"
-    ? root.bar.x
-    : root.bar.x + root.bar.width - root.implicitWidth
+  anchor.rect.x: Math.max(0, Math.min(root.parentWindow.width - root.implicitWidth,
+    root.bar.x + root.anchorCenterX - root.implicitWidth / 2))
   anchor.rect.y: root.bar.y + root.bar.height + Math.round(IslandConfig.trayPopupGap * root.uiScale)
 
   visible: root.open

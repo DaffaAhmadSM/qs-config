@@ -8,7 +8,7 @@ import Quickshell
 
 Singleton {
   // Sizes (px)
-  property int widthCollapsed: 200
+  property int widthCollapsed: 320
   property int widthExpanded: 400
   property int heightCollapsed: 32
   property int heightExpanded: 128 // minimum; expanded height auto-sizes to the view
@@ -34,8 +34,7 @@ Singleton {
   // Collapsed hover: the bar splits into [clock][chips] within widthCollapsed.
   property string trayBubbleSide: "right"  // "left" | "right"
   property string notifBubbleSide: "right" // "left" | "right"
-  property real hoverPillFraction: 0.6
-  property real hoverBubbleFraction: 0.2
+  property real hoverPillFraction: 0.6 // clock share; chips split the rest
   property int bubbleIconSize: 18
   property int bubbleRadius: 16
   property int bubbleSegmentGap: 6
@@ -54,6 +53,22 @@ Singleton {
   property int tooltipPaddingY: 3
   property int tooltipRadius: 10
   property int tooltipSize: 12
+
+  // Power chip + menu
+  property string powerBubbleSide: "right" // "left" | "right"
+  property string powerChipIcon: "assets/power.svg"
+  property int powerPopupWidth: 160
+  property real powerRowHeight: 30
+  property int powerRowSpacing: 2
+  property int powerIconSize: 16
+  property int powerLabelSize: 12
+  property var powerActions: [
+    { label: "Lock",      icon: "assets/lock.svg",    cmd: ["hyprlock"],             confirm: true },
+    { label: "Log out",   icon: "assets/logout.svg",  cmd: ["uwsm", "stop"],         confirm: true },
+    { label: "Suspend",   icon: "assets/suspend.svg", cmd: ["systemctl", "suspend"], confirm: true },
+    { label: "Restart",   icon: "assets/restart.svg", cmd: ["systemctl", "reboot"],  confirm: true },
+    { label: "Shut down", icon: "assets/power.svg",   cmd: ["systemctl", "poweroff"], confirm: true }
+  ]
 
   // Side navigation
   property int navTargetWidth: 30 // width of each clickable side strip

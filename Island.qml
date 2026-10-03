@@ -26,6 +26,7 @@ PanelWindow {
 
   property bool expanded: false
   property bool trayOpen: false
+  property bool powerOpen: false
 
   // Collapsed island briefly swaps the clock for the workspace number.
   property bool showingWorkspace: false
@@ -71,16 +72,17 @@ PanelWindow {
   // ---- Collapsed bar split ----
   readonly property bool trayLeft: IslandConfig.trayBubbleSide === "left"
   readonly property bool notifLeft: IslandConfig.notifBubbleSide === "left"
+  readonly property bool powerLeft: IslandConfig.powerBubbleSide === "left"
   readonly property real collapsedW: Math.round(IslandConfig.widthCollapsed * root.uiScale)
   readonly property real segGap: Math.round(IslandConfig.bubbleSegmentGap * root.uiScale)
-  readonly property int chipCount: 2
-  readonly property int leftCount: (root.trayLeft ? 1 : 0) + (root.notifLeft ? 1 : 0)
+  readonly property int chipCount: 3
+  readonly property int leftCount: (root.trayLeft ? 1 : 0) + (root.notifLeft ? 1 : 0) + (root.powerLeft ? 1 : 0)
   readonly property int rightCount: root.chipCount - root.leftCount
 
-  // Full-hover geometry (split = 1); the live properties below scale them by
-  // the animated `split` so hover *and* unhover interpolate smoothly instead
-  // of snapping on the collapsedHovered boolean.
-  readonly property real chipW0: Math.round((root.collapsedW - root.chipCount * root.segGap) * IslandConfig.hoverBubbleFraction)
+  // Full-hover geometry (split = 1). The chip budget is derived from
+  // hoverPillFraction so it adapts as chips are added.
+  readonly property real chipW0: Math.max(0, Math.round(
+    (root.collapsedW * (1 - IslandConfig.hoverPillFraction) - root.chipCount * root.segGap) / root.chipCount))
   readonly property real leftPanelW0: root.leftCount * (root.chipW0 + root.segGap)
   readonly property real rightPanelW0: root.rightCount * (root.chipW0 + root.segGap)
   readonly property real clockW: root.collapsedW - root.leftPanelW0 - root.rightPanelW0
@@ -89,13 +91,27 @@ PanelWindow {
   readonly property real leftPanelW: root.leftPanelW0 * root.split
   readonly property real rightPanelW: root.rightPanelW0 * root.split
 
+  // Number of same-side chips closer to the clock than `rank`.
+  function chipOffset(rank, isLeft) {
+    const ranks = [0, 1, 2]
+    const sides = [root.notifLeft, root.trayLeft, root.powerLeft]
+    let o = 0
+    for (let i = 0; i < ranks.length; i++)
+      if (ranks[i] < rank && sides[i] === isLeft)
+        o++
+    return o
+  }
+
   // While true the island is mid open/close morph; the hover split is deferred
   // until it settles so the split layout never overlaps the morph.
   property bool morphing: false
 
+  // True while any chip popup is open.
+  readonly property bool anyPopup: root.trayOpen || root.powerOpen
+
   // Whether the bar *should* be in its hovered (split) state. The state itself
   // is debounced on unhover so it doesn't snap back instantly.
-  readonly property bool hoverWanted: !root.expanded && !root.morphing && (barHover.hovered || root.trayOpen)
+  readonly property bool hoverWanted: !root.expanded && !root.morphing && (barHover.hovered || root.anyPopup)
   property bool collapsedHovered: false
 
   // Animated 0..1 factor for the hover split: the clock box interpolates
@@ -103,9 +119,13 @@ PanelWindow {
   property real split: root.collapsedHovered ? 1 : 0
   Behavior on split { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutCubic } }
 
-  // Set by the collapsed content, used by the tray tooltip.
-  property bool trayHovered: false
+  // Set by the collapsed content, used by the shared chip tooltip.
+  property string hoveredChipLabel: ""
+  property real hoveredChipCenterX: 0
+
+  // Chip centers (relative to the pill), used to anchor the popups.
   property real trayChipCenterX: 0
+  property real powerChipCenterX: 0
 
   onHoverWantedChanged: {
     if (root.hoverWanted) {
@@ -132,12 +152,13 @@ PanelWindow {
     if (root.expanded) {
       root.collapsedHovered = false
       root.trayOpen = false
-      root.trayHovered = false
+      root.powerOpen = false
+      root.hoveredChipLabel = ""
       if (IslandConfig.mediaAutoPriority && root.mediaPlaying)
         root.activeView = root.mediaIndex
       return
     }
-    root.trayHovered = false
+    root.hoveredChipLabel = ""
     if (!IslandConfig.mediaAutoPriority || !root.mediaPlaying)
       root.activeView = 0
     else
@@ -203,13 +224,14 @@ PanelWindow {
     }
   }
 
-  // One chip of the collapsed bar (same look as the pill). `tray` swaps the
-  // placeholder for the tray glyph.
+  // One chip of the collapsed bar (same look as the pill). `tray` draws the
+  // tray glyph; `icon` (a system icon path) draws an image instead.
   component BubbleChip: Rectangle {
     id: chip
 
     property bool shown: false
     property bool tray: false
+    property string icon: ""
 
     height: parent ? parent.height : 0
     radius: Math.round(IslandConfig.bubbleRadius * root.uiScale)
@@ -221,7 +243,7 @@ PanelWindow {
 
     // Placeholder icon.
     Rectangle {
-      visible: !chip.tray
+      visible: !chip.tray && chip.icon === ""
       anchors.centerIn: parent
       width: Math.round(IslandConfig.bubbleIconSize * root.uiScale)
       height: width
@@ -232,10 +254,21 @@ PanelWindow {
 
     // Tray icon.
     TrayGlyph {
-      visible: chip.tray
+      visible: chip.tray && chip.icon === ""
       anchors.centerIn: parent
       width: Math.round(IslandConfig.bubbleIconSize * root.uiScale)
       height: width
+    }
+
+    // System icon.
+    Image {
+      visible: chip.icon !== ""
+      anchors.centerIn: parent
+      source: chip.icon
+      sourceSize: Qt.size(Math.round(IslandConfig.bubbleIconSize * root.uiScale),
+                          Math.round(IslandConfig.bubbleIconSize * root.uiScale))
+      asynchronous: true
+      fillMode: Image.PreserveAspectFit
     }
   }
 
@@ -249,8 +282,9 @@ PanelWindow {
       id: collapsedRoot
       anchors.fill: parent
 
-      // Expose the tray chip position for the tooltip.
+      // Expose chip centers (relative to the pill) so popups anchor under them.
       Binding { target: root; property: "trayChipCenterX"; value: trayChip.x + trayChip.width / 2 }
+      Binding { target: root; property: "powerChipCenterX"; value: powerChip.x + powerChip.width / 2 }
 
       // Clock segment. Idle (split 0) it is exactly the pill; on hover (split
       // 1) it shrinks to clockW and the chips appear.
@@ -306,35 +340,86 @@ PanelWindow {
         }
       }
 
-      // Notification chip
+      // Notification chip (rank 0, nearest the clock).
       BubbleChip {
         id: notifChip
         width: root.chipW
         shown: root.collapsedHovered
         x: root.notifLeft
-          ? root.leftPanelW - root.chipW - root.segGap
-          : root.collapsedW - root.rightPanelW + root.segGap
+          ? root.leftPanelW - root.segGap - root.chipW - root.chipOffset(0, true) * (root.chipW + root.segGap)
+          : root.collapsedW - root.rightPanelW + root.chipOffset(0, false) * (root.chipW + root.segGap) + root.segGap
+
+        MouseArea {
+          anchors.fill: parent
+          hoverEnabled: true
+          acceptedButtons: Qt.NoButton // hover only; clicks still open the island
+          cursorShape: Qt.PointingHandCursor
+          onContainsMouseChanged: {
+            if (containsMouse) {
+              root.hoveredChipLabel = "Notifications"
+              root.hoveredChipCenterX = parent.x + parent.width / 2
+            } else if (root.hoveredChipLabel === "Notifications") {
+              root.hoveredChipLabel = ""
+            }
+          }
+        }
       }
 
-      // Tray chip
+      // Tray chip (rank 1).
       BubbleChip {
         id: trayChip
         width: root.chipW
         shown: root.collapsedHovered
         tray: true
-
-        readonly property int order: root.trayLeft === root.notifLeft ? 1 : 0
-
         x: root.trayLeft
-          ? root.leftPanelW - (order + 1) * (root.chipW + root.segGap)
-          : root.collapsedW - root.rightPanelW + order * (root.chipW + root.segGap) + root.segGap
+          ? root.leftPanelW - root.segGap - root.chipW - root.chipOffset(1, true) * (root.chipW + root.segGap)
+          : root.collapsedW - root.rightPanelW + root.chipOffset(1, false) * (root.chipW + root.segGap) + root.segGap
 
         MouseArea {
           anchors.fill: parent
           hoverEnabled: true
           cursorShape: Qt.PointingHandCursor
-          onContainsMouseChanged: root.trayHovered = containsMouse
-          onClicked: root.trayOpen = true
+          onContainsMouseChanged: {
+            if (containsMouse) {
+              root.hoveredChipLabel = "Tray"
+              root.hoveredChipCenterX = parent.x + parent.width / 2
+            } else if (root.hoveredChipLabel === "Tray") {
+              root.hoveredChipLabel = ""
+            }
+          }
+          onClicked: {
+            root.powerOpen = false
+            root.trayOpen = true
+          }
+        }
+      }
+
+      // Power chip (rank 2, outermost).
+      BubbleChip {
+        id: powerChip
+        width: root.chipW
+        shown: root.collapsedHovered
+        icon: IslandConfig.powerChipIcon
+        x: root.powerLeft
+          ? root.leftPanelW - root.segGap - root.chipW - root.chipOffset(2, true) * (root.chipW + root.segGap)
+          : root.collapsedW - root.rightPanelW + root.chipOffset(2, false) * (root.chipW + root.segGap) + root.segGap
+
+        MouseArea {
+          anchors.fill: parent
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onContainsMouseChanged: {
+            if (containsMouse) {
+              root.hoveredChipLabel = "Power"
+              root.hoveredChipCenterX = parent.x + parent.width / 2
+            } else if (root.hoveredChipLabel === "Power") {
+              root.hoveredChipLabel = ""
+            }
+          }
+          onClicked: {
+            root.trayOpen = false
+            root.powerOpen = true
+          }
         }
       }
     }
@@ -541,20 +626,22 @@ PanelWindow {
   }
 
   // Grab the keyboard only while open, so Escape/arrows work.
-  focusable: root.expanded || root.trayOpen
+  focusable: root.expanded || root.anyPopup
 
-  // Collapsed: only the pill is clickable. Expanded or tray-open: the whole
+  // Collapsed: only the pill is clickable. Expanded or popup-open: the whole
   // surface is, so an outside click closes it (and blocks apps underneath).
-  mask: root.expanded || root.trayOpen ? dismissRegion : pillRegion
+  mask: root.expanded || root.anyPopup ? dismissRegion : pillRegion
   Region { id: pillRegion; item: barHitbox }
   Region { id: dismissRegion; item: dismissCatcher }
 
   Shortcut {
     sequence: "Escape"
-    enabled: root.expanded || root.trayOpen
+    enabled: root.expanded || root.anyPopup
     onActivated: {
       if (root.trayOpen)
         root.trayOpen = false
+      else if (root.powerOpen)
+        root.powerOpen = false
       else
         root.expanded = false
     }
@@ -575,12 +662,14 @@ PanelWindow {
   MouseArea {
     id: dismissCatcher
     anchors.fill: parent
-    enabled: root.expanded || root.trayOpen
+    enabled: root.expanded || root.anyPopup
     onClicked: {
       if (root.expanded)
         root.expanded = false
       else if (root.trayOpen)
         root.trayOpen = false
+      else if (root.powerOpen)
+        root.powerOpen = false
     }
   }
 
@@ -648,12 +737,12 @@ PanelWindow {
     }
   }
 
-  // Tray chip tooltip.
+  // Shared chip tooltip.
   Rectangle {
-    id: trayTooltip
-    opacity: root.trayHovered && !root.expanded && !root.trayOpen && root.collapsedHovered ? 1 : 0
+    id: chipTooltip
+    opacity: root.hoveredChipLabel !== "" && !root.expanded && !root.anyPopup && root.collapsedHovered ? 1 : 0
     Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
-    x: pill.x + root.trayChipCenterX - width / 2
+    x: pill.x + root.hoveredChipCenterX - width / 2
     y: pill.y + pill.height + Math.round(IslandConfig.tooltipGap * root.uiScale)
     width: tooltipLabel.implicitWidth + 2 * Math.round(IslandConfig.tooltipPaddingX * root.uiScale)
     height: tooltipLabel.implicitHeight + 2 * Math.round(IslandConfig.tooltipPaddingY * root.uiScale)
@@ -663,7 +752,7 @@ PanelWindow {
     Text {
       id: tooltipLabel
       anchors.centerIn: parent
-      text: qsTr("Tray")
+      text: root.hoveredChipLabel
       color: IslandConfig.foreground
       font.pixelSize: Math.round(IslandConfig.tooltipSize * root.uiScale)
     }
@@ -673,10 +762,21 @@ PanelWindow {
     id: trayPopup
     parentWindow: root
     bar: pill
-    side: IslandConfig.trayBubbleSide
+    anchorCenterX: root.trayChipCenterX
     open: root.trayOpen
     uiScale: root.uiScale
     onClosed: root.trayOpen = false
     onDismissed: root.trayOpen = false
+  }
+
+  PowerPopup {
+    id: powerPopup
+    parentWindow: root
+    bar: pill
+    anchorCenterX: root.powerChipCenterX
+    open: root.powerOpen
+    uiScale: root.uiScale
+    onClosed: root.powerOpen = false
+    onDismissed: root.powerOpen = false
   }
 }
