@@ -200,13 +200,11 @@ PanelWindow {
       ? root.expandedContentHeight
       : Math.round(IslandConfig.heightCollapsed * root.uiScale)
     radius: Math.round((root.expanded ? IslandConfig.radiusExpanded : IslandConfig.radiusCollapsed) * root.uiScale)
-    // Brief inverted flash while showing the workspace.
-    color: root.showingWorkspace && !root.expanded ? IslandConfig.foreground : IslandConfig.background
+    color: IslandConfig.background
 
     Behavior on width { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutBack } }
     Behavior on height { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutBack } }
     Behavior on radius { NumberAnimation { duration: IslandConfig.animationDuration } }
-    Behavior on color { ColorAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.InOutCubic } }
 
     // Open only; closing is done by clicking outside or pressing Escape. Sits
     // above the dismiss catcher so a pill click never closes the island.
@@ -232,29 +230,46 @@ PanelWindow {
         enabled: !root.expanded
         opacity: root.expanded ? 0 : 1
 
-        // Clock; fades out as the workspace number fades in. Light, visible on
-        // the dark pill.
-        Text {
-          id: clockText
-          anchors.centerIn: parent
-          text: Time.time
-          color: IslandConfig.foreground
-          font.bold: true
-          font.pixelSize: Math.round(IslandConfig.clockCollapsedSize * root.uiScale)
+        // Clock face; slides up and fades out while the workspace shows.
+        Item {
+          id: clockFace
+          anchors.fill: parent
           opacity: root.showingWorkspace ? 0 : 1
-          Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.InOutCubic } }
+          Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
+
+          transform: Translate {
+            y: root.showingWorkspace ? -clockFace.height : 0
+            Behavior on y { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutBack } }
+          }
+
+          Text {
+            anchors.centerIn: parent
+            text: Time.time
+            color: IslandConfig.foreground
+            font.bold: true
+            font.pixelSize: Math.round(IslandConfig.clockCollapsedSize * root.uiScale)
+          }
         }
 
-        // Workspace number; dark, readable while the pill is lightened.
-        Text {
-          id: workspaceText
-          anchors.centerIn: parent
-          text: Hyprland.focusedWorkspace?.name ?? ""
-          color: IslandConfig.background
-          font.bold: true
-          font.pixelSize: Math.round(IslandConfig.clockCollapsedSize * root.uiScale)
+        // Workspace face; slides in from below on workspace change.
+        Item {
+          id: workspaceFace
+          anchors.fill: parent
           opacity: root.showingWorkspace ? 1 : 0
-          Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.InOutCubic } }
+          Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
+
+          transform: Translate {
+            y: root.showingWorkspace ? 0 : workspaceFace.height
+            Behavior on y { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutBack } }
+          }
+
+          Text {
+            anchors.centerIn: parent
+            text: Hyprland.focusedWorkspace?.name ?? ""
+            color: IslandConfig.foreground
+            font.bold: true
+            font.pixelSize: Math.round(IslandConfig.clockCollapsedSize * root.uiScale)
+          }
         }
       }
 
