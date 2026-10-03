@@ -74,15 +74,20 @@ PanelWindow {
   readonly property real collapsedW: Math.round(IslandConfig.widthCollapsed * root.uiScale)
   readonly property real segGap: Math.round(IslandConfig.bubbleSegmentGap * root.uiScale)
   readonly property int chipCount: 2
-  readonly property real gapTotal: root.collapsedHovered ? root.chipCount * root.segGap : 0
-  readonly property real avail: root.collapsedW - root.gapTotal
-  readonly property real chipW: root.collapsedHovered
-    ? Math.round(root.avail * IslandConfig.hoverBubbleFraction) : 0
   readonly property int leftCount: (root.trayLeft ? 1 : 0) + (root.notifLeft ? 1 : 0)
   readonly property int rightCount: root.chipCount - root.leftCount
-  readonly property real leftPanelW: root.collapsedHovered ? root.leftCount * (root.chipW + root.segGap) : 0
-  readonly property real rightPanelW: root.collapsedHovered ? root.rightCount * (root.chipW + root.segGap) : 0
-  readonly property real clockW: root.collapsedW - root.leftPanelW - root.rightPanelW
+
+  // Full-hover geometry (split = 1); the live properties below scale them by
+  // the animated `split` so hover *and* unhover interpolate smoothly instead
+  // of snapping on the collapsedHovered boolean.
+  readonly property real chipW0: Math.round((root.collapsedW - root.chipCount * root.segGap) * IslandConfig.hoverBubbleFraction)
+  readonly property real leftPanelW0: root.leftCount * (root.chipW0 + root.segGap)
+  readonly property real rightPanelW0: root.rightCount * (root.chipW0 + root.segGap)
+  readonly property real clockW: root.collapsedW - root.leftPanelW0 - root.rightPanelW0
+
+  readonly property real chipW: root.chipW0 * root.split
+  readonly property real leftPanelW: root.leftPanelW0 * root.split
+  readonly property real rightPanelW: root.rightPanelW0 * root.split
 
   // While true the island is mid open/close morph; the hover split is deferred
   // until it settles so the split layout never overlaps the morph.
@@ -210,10 +215,9 @@ PanelWindow {
     radius: Math.round(IslandConfig.bubbleRadius * root.uiScale)
     color: IslandConfig.background
     clip: true
-    visible: shown ? 1 : 0
+    enabled: shown
+    opacity: shown ? 1 : 0
     Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
-    Behavior on width { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutCubic } }
-    Behavior on x { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutCubic } }
 
     // Placeholder icon.
     Rectangle {
@@ -251,10 +255,10 @@ PanelWindow {
       // Clock segment. Idle (split 0) it is exactly the pill; on hover (split
       // 1) it shrinks to clockW and the chips appear.
       Rectangle {
-        id: clockSegment
-        x: root.leftPanelW * root.split
-        width: parent.width + (root.clockW - parent.width) * root.split
-        height: parent.height
+          id: clockSegment
+          x: root.leftPanelW
+          width: parent.width + (root.clockW - parent.width) * root.split
+          height: parent.height
         radius: pill.radius + (Math.round(IslandConfig.radiusCollapsed * root.uiScale) - pill.radius) * root.split
         color: IslandConfig.background
         clip: true
