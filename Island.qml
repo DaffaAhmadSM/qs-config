@@ -1,7 +1,7 @@
 // Island.qml
 // One dynamic island per monitor. Visible only on the compositor's focused
 // monitor. A single content node is swapped between the collapsed bar (clock /
-// workspace, with the hover split chips) and the expanded island (nav + view),
+// workspace, with its hover chip strip) and the expanded island (nav + view),
 // so only one is ever instantiated. All sizing/colours come from IslandConfig.
 //
 // Adding an expanded view: create <Name>View.qml with a `required property
@@ -27,6 +27,7 @@ PanelWindow {
   property bool expanded: false
   property bool trayOpen: false
   property bool powerOpen: false
+  property bool notificationsOpen: false
 
   // Collapsed island briefly swaps the clock for the workspace number.
   property bool showingWorkspace: false
@@ -70,19 +71,22 @@ PanelWindow {
   )
 
   // ---- Collapsed bar split ----
-  readonly property bool trayLeft: IslandConfig.trayBubbleSide === "left"
-  readonly property bool notifLeft: IslandConfig.notifBubbleSide === "left"
-  readonly property bool powerLeft: IslandConfig.powerBubbleSide === "left"
+  // One uniform chip per entry; `side` splits them across the hovered bar and
+  // the array order is their distance from the clock (nearest first).
+  readonly property var chips: [
+    { kind: "notif", label: "Notifications", side: IslandConfig.notifBubbleSide, icon: IslandConfig.notifChipIcon },
+    { kind: "tray", label: "Tray", side: IslandConfig.trayBubbleSide },
+    { kind: "power", label: "Power", side: IslandConfig.powerBubbleSide, icon: IslandConfig.powerChipIcon }
+  ]
   readonly property real collapsedW: Math.round(IslandConfig.widthCollapsed * root.uiScale)
   readonly property real segGap: Math.round(IslandConfig.bubbleSegmentGap * root.uiScale)
-  readonly property int chipCount: 3
-  readonly property int leftCount: (root.trayLeft ? 1 : 0) + (root.notifLeft ? 1 : 0) + (root.powerLeft ? 1 : 0)
-  readonly property int rightCount: root.chipCount - root.leftCount
+  readonly property int leftCount: root.chips.filter(c => c.side === "left").length
+  readonly property int rightCount: root.chips.length - root.leftCount
 
   // Full-hover geometry (split = 1). The chip budget is derived from
   // hoverPillFraction so it adapts as chips are added.
   readonly property real chipW0: Math.max(0, Math.round(
-    (root.collapsedW * (1 - IslandConfig.hoverPillFraction) - root.chipCount * root.segGap) / root.chipCount))
+    (root.collapsedW * (1 - IslandConfig.hoverPillFraction) - root.chips.length * root.segGap) / root.chips.length))
   readonly property real leftPanelW0: root.leftCount * (root.chipW0 + root.segGap)
   readonly property real rightPanelW0: root.rightCount * (root.chipW0 + root.segGap)
   readonly property real clockW: root.collapsedW - root.leftPanelW0 - root.rightPanelW0
@@ -93,25 +97,34 @@ PanelWindow {
 
   // Number of same-side chips closer to the clock than `rank`.
   function chipOffset(rank, isLeft) {
-    const ranks = [0, 1, 2]
-    const sides = [root.notifLeft, root.trayLeft, root.powerLeft]
     let o = 0
-    for (let i = 0; i < ranks.length; i++)
-      if (ranks[i] < rank && sides[i] === isLeft)
+    for (let i = 0; i < rank; i++)
+      if ((root.chips[i].side === "left") === isLeft)
         o++
     return o
+  }
+
+  // X of chip `rank` within the collapsed bar, laid out outwards from the clock.
+  function chipX(rank, isLeft) {
+    const off = root.chipOffset(rank, isLeft)
+    return isLeft
+      ? root.leftPanelW - root.segGap - root.chipW - off * (root.chipW + root.segGap)
+      : root.collapsedW - root.rightPanelW + off * (root.chipW + root.segGap) + root.segGap
   }
 
   // While true the island is mid open/close morph; the hover split is deferred
   // until it settles so the split layout never overlaps the morph.
   property bool morphing: false
 
-  // True while any chip popup is open.
-  readonly property bool anyPopup: root.trayOpen || root.powerOpen
+  // True while a collapsed-bar popup (tray or power) is open.
+  readonly property bool chipPopupOpen: root.trayOpen || root.powerOpen
+
+  // True while any overlay that needs the full-screen dismiss catcher is open.
+  readonly property bool overlaysOpen: root.expanded || root.chipPopupOpen || root.notificationsOpen
 
   // Whether the bar *should* be in its hovered (split) state. The state itself
   // is debounced on unhover so it doesn't snap back instantly.
-  readonly property bool hoverWanted: !root.expanded && !root.morphing && (barHover.hovered || root.anyPopup)
+  readonly property bool hoverWanted: !root.expanded && !root.morphing && (barHover.hovered || root.chipPopupOpen)
   property bool collapsedHovered: false
 
   // Animated 0..1 factor for the hover split: the clock box interpolates
@@ -123,9 +136,12 @@ PanelWindow {
   property string hoveredChipLabel: ""
   property real hoveredChipCenterX: 0
 
-  // Chip centers (relative to the pill), used to anchor the popups.
-  property real trayChipCenterX: 0
-  property real powerChipCenterX: 0
+  // Chip centers (relative to the pill), keyed by chip kind, used to anchor the
+  // popups. Rebuilt by the chip delegates since a Repeater has no stable ids.
+  property var chipCenters: ({})
+  function setChipCenter(kind, center) {
+    root.chipCenters = Object.assign({}, root.chipCenters, { [kind]: center })
+  }
 
   onHoverWantedChanged: {
     if (root.hoverWanted) {
@@ -153,6 +169,7 @@ PanelWindow {
       root.collapsedHovered = false
       root.trayOpen = false
       root.powerOpen = false
+      root.notificationsOpen = false
       root.hoveredChipLabel = ""
       if (IslandConfig.mediaAutoPriority && root.mediaPlaying)
         root.activeView = root.mediaIndex
@@ -225,13 +242,17 @@ PanelWindow {
   }
 
   // One chip of the collapsed bar (same look as the pill). `tray` draws the
-  // tray glyph; `icon` (a system icon path) draws an image instead.
+  // tray glyph; `icon` (a system icon path) draws an image instead. Owns the
+  // shared hover-tooltip wiring and emits `clicked` for the bar to route.
   component BubbleChip: Rectangle {
     id: chip
 
     property bool shown: false
     property bool tray: false
     property string icon: ""
+    property string label: ""
+
+    signal clicked()
 
     height: parent ? parent.height : 0
     radius: Math.round(IslandConfig.bubbleRadius * root.uiScale)
@@ -270,6 +291,21 @@ PanelWindow {
       asynchronous: true
       fillMode: Image.PreserveAspectFit
     }
+
+    MouseArea {
+      anchors.fill: parent
+      hoverEnabled: true
+      cursorShape: Qt.PointingHandCursor
+      onContainsMouseChanged: {
+        if (containsMouse) {
+          root.hoveredChipLabel = chip.label
+          root.hoveredChipCenterX = chip.x + chip.width / 2
+        } else if (root.hoveredChipLabel === chip.label) {
+          root.hoveredChipLabel = ""
+        }
+      }
+      onClicked: chip.clicked()
+    }
   }
 
   // ---- Swappable content: exactly one of these is instantiated ----
@@ -281,10 +317,6 @@ PanelWindow {
     Item {
       id: collapsedRoot
       anchors.fill: parent
-
-      // Expose chip centers (relative to the pill) so popups anchor under them.
-      Binding { target: root; property: "trayChipCenterX"; value: trayChip.x + trayChip.width / 2 }
-      Binding { target: root; property: "powerChipCenterX"; value: powerChip.x + powerChip.width / 2 }
 
       // Clock segment. Idle (split 0) it is exactly the pill; on hover (split
       // 1) it shrinks to clockW and the chips appear.
@@ -340,85 +372,31 @@ PanelWindow {
         }
       }
 
-      // Notification chip (rank 0, nearest the clock).
-      BubbleChip {
-        id: notifChip
-        width: root.chipW
-        shown: root.collapsedHovered
-        x: root.notifLeft
-          ? root.leftPanelW - root.segGap - root.chipW - root.chipOffset(0, true) * (root.chipW + root.segGap)
-          : root.collapsedW - root.rightPanelW + root.chipOffset(0, false) * (root.chipW + root.segGap) + root.segGap
+      // Chip strip: one delegate per configured chip, ordered outwards from the
+      // clock. Each reports its center so the matching popup can anchor under it.
+      Repeater {
+        model: root.chips
 
-        MouseArea {
-          anchors.fill: parent
-          hoverEnabled: true
-          acceptedButtons: Qt.NoButton // hover only; clicks still open the island
-          cursorShape: Qt.PointingHandCursor
-          onContainsMouseChanged: {
-            if (containsMouse) {
-              root.hoveredChipLabel = "Notifications"
-              root.hoveredChipCenterX = parent.x + parent.width / 2
-            } else if (root.hoveredChipLabel === "Notifications") {
-              root.hoveredChipLabel = ""
-            }
-          }
-        }
-      }
+        delegate: BubbleChip {
+          required property var modelData
+          required property int index
 
-      // Tray chip (rank 1).
-      BubbleChip {
-        id: trayChip
-        width: root.chipW
-        shown: root.collapsedHovered
-        tray: true
-        x: root.trayLeft
-          ? root.leftPanelW - root.segGap - root.chipW - root.chipOffset(1, true) * (root.chipW + root.segGap)
-          : root.collapsedW - root.rightPanelW + root.chipOffset(1, false) * (root.chipW + root.segGap) + root.segGap
+          readonly property real center: x + width / 2
 
-        MouseArea {
-          anchors.fill: parent
-          hoverEnabled: true
-          cursorShape: Qt.PointingHandCursor
-          onContainsMouseChanged: {
-            if (containsMouse) {
-              root.hoveredChipLabel = "Tray"
-              root.hoveredChipCenterX = parent.x + parent.width / 2
-            } else if (root.hoveredChipLabel === "Tray") {
-              root.hoveredChipLabel = ""
-            }
-          }
+          width: root.chipW
+          shown: root.collapsedHovered
+          label: modelData.label
+          tray: modelData.kind === "tray"
+          icon: modelData.icon ?? ""
+          x: root.chipX(index, modelData.side === "left")
+
+          onCenterChanged: root.setChipCenter(modelData.kind, center)
+          Component.onCompleted: root.setChipCenter(modelData.kind, center)
+
           onClicked: {
-            root.powerOpen = false
-            root.trayOpen = true
-          }
-        }
-      }
-
-      // Power chip (rank 2, outermost).
-      BubbleChip {
-        id: powerChip
-        width: root.chipW
-        shown: root.collapsedHovered
-        icon: IslandConfig.powerChipIcon
-        x: root.powerLeft
-          ? root.leftPanelW - root.segGap - root.chipW - root.chipOffset(2, true) * (root.chipW + root.segGap)
-          : root.collapsedW - root.rightPanelW + root.chipOffset(2, false) * (root.chipW + root.segGap) + root.segGap
-
-        MouseArea {
-          anchors.fill: parent
-          hoverEnabled: true
-          cursorShape: Qt.PointingHandCursor
-          onContainsMouseChanged: {
-            if (containsMouse) {
-              root.hoveredChipLabel = "Power"
-              root.hoveredChipCenterX = parent.x + parent.width / 2
-            } else if (root.hoveredChipLabel === "Power") {
-              root.hoveredChipLabel = ""
-            }
-          }
-          onClicked: {
-            root.trayOpen = false
-            root.powerOpen = true
+            root.trayOpen = modelData.kind === "tray"
+            root.powerOpen = modelData.kind === "power"
+            root.notificationsOpen = modelData.kind === "notif"
           }
         }
       }
@@ -626,19 +604,22 @@ PanelWindow {
   }
 
   // Grab the keyboard only while open, so Escape/arrows work.
-  focusable: root.expanded || root.anyPopup
+  focusable: root.overlaysOpen
 
   // Collapsed: only the pill is clickable. Expanded or popup-open: the whole
   // surface is, so an outside click closes it (and blocks apps underneath).
-  mask: root.expanded || root.anyPopup ? dismissRegion : pillRegion
+  // A live toast also needs its own clickable region while collapsed/closed.
+  mask: root.overlaysOpen || Notifications.toasts.count > 0 ? dismissRegion : pillRegion
   Region { id: pillRegion; item: barHitbox }
   Region { id: dismissRegion; item: dismissCatcher }
 
   Shortcut {
     sequence: "Escape"
-    enabled: root.expanded || root.anyPopup
+    enabled: root.overlaysOpen
     onActivated: {
-      if (root.trayOpen)
+      if (root.notificationsOpen)
+        root.notificationsOpen = false
+      else if (root.trayOpen)
         root.trayOpen = false
       else if (root.powerOpen)
         root.powerOpen = false
@@ -662,10 +643,12 @@ PanelWindow {
   MouseArea {
     id: dismissCatcher
     anchors.fill: parent
-    enabled: root.expanded || root.anyPopup
+    enabled: root.overlaysOpen
     onClicked: {
       if (root.expanded)
         root.expanded = false
+      else if (root.notificationsOpen)
+        root.notificationsOpen = false
       else if (root.trayOpen)
         root.trayOpen = false
       else if (root.powerOpen)
@@ -740,7 +723,7 @@ PanelWindow {
   // Shared chip tooltip.
   Rectangle {
     id: chipTooltip
-    opacity: root.hoveredChipLabel !== "" && !root.expanded && !root.anyPopup && root.collapsedHovered ? 1 : 0
+    opacity: root.hoveredChipLabel !== "" && !root.expanded && !root.chipPopupOpen && root.collapsedHovered ? 1 : 0
     Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
     x: pill.x + root.hoveredChipCenterX - width / 2
     y: pill.y + pill.height + Math.round(IslandConfig.tooltipGap * root.uiScale)
@@ -762,7 +745,7 @@ PanelWindow {
     id: trayPopup
     parentWindow: root
     bar: pill
-    anchorCenterX: root.trayChipCenterX
+    anchorCenterX: root.chipCenters.tray ?? 0
     open: root.trayOpen
     uiScale: root.uiScale
     onClosed: root.trayOpen = false
@@ -773,10 +756,23 @@ PanelWindow {
     id: powerPopup
     parentWindow: root
     bar: pill
-    anchorCenterX: root.powerChipCenterX
+    anchorCenterX: root.chipCenters.power ?? 0
     open: root.powerOpen
     uiScale: root.uiScale
     onClosed: root.powerOpen = false
     onDismissed: root.powerOpen = false
+  }
+
+  NotificationToasts {
+    anchors.fill: parent
+    uiScale: root.uiScale
+    visible: !root.notificationsOpen
+  }
+
+  NotificationSidebar {
+    anchors.fill: parent
+    uiScale: root.uiScale
+    open: root.notificationsOpen
+    onClosed: root.notificationsOpen = false
   }
 }

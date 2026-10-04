@@ -17,7 +17,6 @@ Singleton {
   property int topMargin: 2
 
   // Inner padding of the expanded view
-  property int expandedPaddingX: 16
   property int expandedPaddingY: 14
 
   // Type (px)
@@ -28,7 +27,6 @@ Singleton {
   // View navigation header
   property int headerHeight: 16
   property int headerSize: 12
-  property int headerSpacing: 12
   property int arrowSize: 22
 
   // Collapsed hover: the bar splits into [clock][chips] within widthCollapsed.
@@ -78,6 +76,30 @@ Singleton {
   property bool navSeparator: false
   property real navSeparatorOpacity: 0.2
 
+  // Notifications
+  property int notifSidebarWidth: 340
+  property int notifSidebarPadding: 12
+  property int notifSidebarRadius: 20
+  property int notifTitleSize: 16
+  property int notifIconSize: 20
+  property int notifAppNameSize: 11
+  property int notifSummarySize: 13
+  property int notifBodySize: 12
+  property int notifCloseSize: 13
+  property int notifBodyMaxLines: 6
+  property int notifImageHeight: 120
+  property int notifCardPadding: 10
+  property int notifCardSpacing: 8
+  property int notifCardRadius: 14
+  property int notifToastWidth: 320
+  property int notifToastGap: 8
+  property int notifToastTopMargin: 48
+  property int notifToastRightMargin: 12
+  property int notifToastMax: 5
+  property string notifChipIcon: "assets/bell.svg"
+  property color notifCardSurface: "#171717"
+  property color notifCardBorder: "#2a2a2a"
+
   // Media view
   property int mediaArtSize: 48
   property int mediaTitleSize: 14
@@ -94,5 +116,4 @@ Singleton {
   // Colours
   property color background: "#0d0d0d"
   property color foreground: "#f2f2f2"
-  property real dateOpacity: 0.65
 }
