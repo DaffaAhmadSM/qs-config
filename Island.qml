@@ -606,11 +606,13 @@ PanelWindow {
   // Grab the keyboard only while open, so Escape/arrows work.
   focusable: root.overlaysOpen
 
-  // Collapsed: only the pill is clickable. Expanded or popup-open: the whole
-  // surface is, so an outside click closes it (and blocks apps underneath).
-  // A live toast also needs its own clickable region while collapsed/closed.
-  mask: root.overlaysOpen || Notifications.toasts.count > 0 ? dismissRegion : pillRegion
-  Region { id: pillRegion; item: barHitbox }
+  // Collapsed: only the pill and the live toast stack are clickable; an open
+  // overlay uses the full-screen dismiss catcher.
+  mask: root.overlaysOpen ? dismissRegion : collapsedRegion
+  Region { id: collapsedRegion
+    Region { item: barHitbox }
+    Region { item: notifToasts.area }
+  }
   Region { id: dismissRegion; item: dismissCatcher }
 
   Shortcut {
@@ -764,6 +766,7 @@ PanelWindow {
   }
 
   NotificationToasts {
+    id: notifToasts
     anchors.fill: parent
     uiScale: root.uiScale
     visible: !root.notificationsOpen

@@ -12,6 +12,10 @@ Item {
 
   readonly property real widthPx: Math.round(IslandConfig.notifToastWidth * root.uiScale)
 
+  // The clickable extent of the toast stack, used by the island's input mask so
+  // toasts never block the rest of the screen.
+  readonly property alias area: list
+
   ListView {
     id: list
     anchors.top: parent.top
@@ -19,20 +23,18 @@ Item {
     anchors.topMargin: Math.round(IslandConfig.notifToastTopMargin * root.uiScale)
     anchors.rightMargin: Math.round(IslandConfig.notifToastRightMargin * root.uiScale)
     width: root.widthPx
-    height: parent.height
+    height: Math.max(contentHeight, 1)
     spacing: Math.round(IslandConfig.notifToastGap * root.uiScale)
     model: Notifications.toasts
     interactive: false
     boundsBehavior: Flickable.StopAtBounds
 
     add: Transition {
-      NumberAnimation { property: "opacity"; from: 0; to: 1; duration: IslandConfig.animationDuration }
-      NumberAnimation { property: "scale"; from: 0.92; to: 1; duration: IslandConfig.animationDuration; easing.type: Easing.OutCubic }
+      NumberAnimation { property: "x"; from: list.width; to: 0; duration: IslandConfig.animationDuration; easing.type: Easing.OutCubic }
     }
 
     remove: Transition {
-      NumberAnimation { property: "opacity"; to: 0; duration: IslandConfig.animationDuration; easing.type: Easing.InCubic }
-      NumberAnimation { property: "scale"; to: 0.92; duration: IslandConfig.animationDuration; easing.type: Easing.InCubic }
+      NumberAnimation { property: "x"; to: list.width; duration: IslandConfig.animationDuration; easing.type: Easing.InCubic }
     }
 
     displaced: Transition {
@@ -46,26 +48,20 @@ Item {
       allowReply: false
       notification: Notifications.objectFor(key)
 
-      onClosed: Notifications.removeToast(notification)
+      onClosed: Notifications.dropKey(key)
 
-      Connections {
-        target: notification
-        function onClosed() { Notifications.removeToast(notification) }
-      }
-
-      // Auto-expire. A non-positive timeout means "never".
+      // Fixed short timeout, paused while hovered and restarted from 0 on
+      // unhover. Only hides the toast; the notification stays in the sidebar
+      // until dismissed.
       Timer {
         id: expireTimer
-        running: notification.expireTimeout > 0
-        interval: Math.max(1, notification.expireTimeout * 1000)
-        onTriggered: notification.expire()
+        running: true
+        interval: IslandConfig.notifToastDuration
+        onTriggered: Notifications.dropKey(key)
       }
 
       HoverHandler {
-        onHoveredChanged: {
-          if (!expireTimer.running) return
-          hovered ? expireTimer.stop() : expireTimer.restart()
-        }
+        onHoveredChanged: hovered ? expireTimer.stop() : expireTimer.restart()
       }
     }
   }

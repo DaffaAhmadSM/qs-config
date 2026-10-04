@@ -8,10 +8,10 @@ import Quickshell
 
 Singleton {
   // Sizes (px)
-  property int widthCollapsed: 320
+  property int widthCollapsed: 400
   property int widthExpanded: 400
   property int heightCollapsed: 32
-  property int heightExpanded: 128 // minimum; expanded height auto-sizes to the view
+  property int heightExpanded: 200 // minimum; expanded height auto-sizes to the view
   property int radiusCollapsed: 16
   property int radiusExpanded: 26
   property int topMargin: 2
@@ -87,7 +87,11 @@ Singleton {
   property int notifBodySize: 12
   property int notifCloseSize: 13
   property int notifBodyMaxLines: 6
-  property int notifImageHeight: 120
+  property int notifThumbSize: 44
+  property int notifPilePeek: 6
+  property int notifPileInset: 6
+  property int notifPileMax: 3
+  property int notifAnimStagger: 40 // ms between staggered rows when fanning/staggering
   property int notifCardPadding: 10
   property int notifCardSpacing: 8
   property int notifCardRadius: 14
@@ -96,9 +100,12 @@ Singleton {
   property int notifToastTopMargin: 48
   property int notifToastRightMargin: 12
   property int notifToastMax: 5
+  property int notifToastDuration: 2000 // ms before a toast expires (restarts on unhover)
   property string notifChipIcon: "assets/bell.svg"
   property color notifCardSurface: "#171717"
   property color notifCardBorder: "#2a2a2a"
+  property color notifCardHoverSurface: "#1f1f1f"
+  property color notifCardHoverBorder: "#3a3a3a"
 
   // Media view
   property int mediaArtSize: 48
