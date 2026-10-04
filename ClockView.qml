@@ -1,5 +1,7 @@
 // ClockView.qml
 // Expanded island view: the current time with the date beneath it.
+pragma ComponentBehavior: Bound
+
 import QtQuick
 
 Column {

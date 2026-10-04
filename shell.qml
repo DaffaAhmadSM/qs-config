@@ -1,4 +1,6 @@
 //@ pragma UseQApplication
+pragma ComponentBehavior: Bound
+
 import Quickshell
 
 ShellRoot {
@@ -15,7 +17,7 @@ ShellRoot {
       screen: modelData
       color: "transparent"
       exclusionMode: ExclusionMode.Normal
-      exclusiveZone: 42 * s
+      exclusiveZone: 32 * s
       aboveWindows: true
 
       anchors {
@@ -23,7 +25,6 @@ ShellRoot {
         left: true
         right: true
       }
-      implicitHeight: 42 * s
     }
   }
 

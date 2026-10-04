@@ -3,6 +3,8 @@
 // Opened from the collapsed island's tray chip. The body (and the SystemTray
 // reference) is only built while open, so nothing tray-related exists when the
 // popup is closed.
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import Quickshell
 import Quickshell.Services.SystemTray
@@ -10,7 +12,6 @@ import Quickshell.Services.SystemTray
 PopupWindow {
   id: root
 
-  required property var parentWindow
   required property Item bar
   required property real anchorCenterX
   required property bool open
@@ -72,12 +73,16 @@ PopupWindow {
           width: list.width
           height: root.itemPx
 
+          Accessible.role: Accessible.Button
+          Accessible.name: entry.modelData.tooltipTitle || entry.modelData.title || qsTr("Tray item")
+
           Image {
             anchors.centerIn: parent
             source: entry.modelData.icon
             sourceSize: Qt.size(entry.width, entry.height)
             asynchronous: true
             fillMode: Image.PreserveAspectFit
+            Accessible.ignored: true
           }
 
           MouseArea {

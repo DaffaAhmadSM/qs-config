@@ -2,6 +2,7 @@
 // All island knobs in one place. Values are base pixels at 1080p and get
 // multiplied by each screen's scale factor inside Island.qml.
 pragma Singleton
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell

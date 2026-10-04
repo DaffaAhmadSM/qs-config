@@ -3,12 +3,17 @@
 // ListModel so adding or removing one toast animates only that toast. Each
 // auto-expires after the notification's own timeout (unless it never expires or
 // the pointer is resting on it). Lives inside the island's overlay.
+pragma ComponentBehavior: Bound
+
 import QtQuick
 
 Item {
   id: root
 
   required property real uiScale
+
+  Accessible.role: Accessible.Grouping
+  Accessible.name: qsTr("Notifications")
 
   readonly property real widthPx: Math.round(IslandConfig.notifToastWidth * root.uiScale)
 
@@ -42,13 +47,14 @@ Item {
     }
 
     delegate: NotificationCard {
+      id: toastCard
       required property int key
       width: list.width
       uiScale: root.uiScale
       allowReply: false
       notification: Notifications.objectFor(key)
 
-      onClosed: Notifications.dropKey(key)
+      onClosed: Notifications.dropKey(toastCard.key)
 
       // Fixed short timeout, paused while hovered and restarted from 0 on
       // unhover. Only hides the toast; the notification stays in the sidebar
@@ -57,11 +63,12 @@ Item {
         id: expireTimer
         running: true
         interval: IslandConfig.notifToastDuration
-        onTriggered: Notifications.dropKey(key)
+        onTriggered: Notifications.dropKey(toastCard.key)
       }
 
       HoverHandler {
-        onHoveredChanged: hovered ? expireTimer.stop() : expireTimer.restart()
+        id: toastHover
+        onHoveredChanged: toastHover.hovered ? expireTimer.stop() : expireTimer.restart()
       }
     }
   }

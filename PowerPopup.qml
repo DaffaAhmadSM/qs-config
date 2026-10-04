@@ -2,13 +2,14 @@
 // A small popup listing session/power actions with bundled icons and labels.
 // Opened from the collapsed island's power chip. The body is only built while
 // open. Every action shows an inline confirmation before running.
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import Quickshell
 
 PopupWindow {
   id: root
 
-  required property var parentWindow
   required property Item bar
   required property real anchorCenterX
   required property bool open
@@ -78,6 +79,9 @@ PopupWindow {
             width: root.popupW - 2 * root.pad
             height: root.rowH
 
+            Accessible.role: Accessible.Button
+            Accessible.name: row.modelData.label
+
             // Hover highlight sits behind the content so it can't dim it.
             Rectangle {
               anchors.fill: parent
@@ -97,6 +101,7 @@ PopupWindow {
                                   Math.round(IslandConfig.powerIconSize * root.uiScale))
               asynchronous: true
               fillMode: Image.PreserveAspectFit
+              Accessible.ignored: true
             }
 
             Text {
@@ -147,6 +152,9 @@ PopupWindow {
             width: Math.round(72 * root.uiScale)
             height: root.rowH
 
+            Accessible.role: Accessible.Button
+            Accessible.name: qsTr("Cancel")
+
             Rectangle {
               anchors.fill: parent
               radius: Math.round(IslandConfig.trayPopupRadius * root.uiScale / 2)
@@ -174,6 +182,9 @@ PopupWindow {
           Item {
             width: Math.round(72 * root.uiScale)
             height: root.rowH
+
+            Accessible.role: Accessible.Button
+            Accessible.name: qsTr("Confirm")
 
             Rectangle {
               anchors.fill: parent

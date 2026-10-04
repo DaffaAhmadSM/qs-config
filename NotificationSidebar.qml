@@ -3,6 +3,8 @@
 // notifications grouped by app. Backed by Notifications.display, a stable
 // ListModel, so rows animate in/out instead of the view rebuilding. Groups
 // collapse into a card pile; expanding fans the members downward.
+pragma ComponentBehavior: Bound
+
 import QtQuick
 
 Item {
@@ -37,7 +39,6 @@ Item {
     bottomLeftRadius: Math.round(IslandConfig.notifSidebarRadius * root.uiScale)
 
     Loader {
-      id: loader
       anchors.fill: parent
       active: root.open || closeTimer.running
       sourceComponent: sidebarBody
@@ -84,6 +85,9 @@ Item {
             opacity: clearHover.containsMouse ? 1 : 0.6
             font.pixelSize: Math.round(IslandConfig.notifBodySize * root.uiScale)
             visible: Notifications.count > 0
+
+            Accessible.role: Accessible.Button
+            Accessible.name: qsTr("Clear all notifications")
 
             MouseArea {
               id: clearHover
@@ -179,8 +183,10 @@ Item {
               height: Math.max(groupIcon.visible ? groupIcon.height : 0, chevron.height, groupClear.height)
               visible: row.multi && row.isStart
 
+              Accessible.role: Accessible.Button
+              Accessible.name: row.appName
+
               MouseArea {
-                id: groupToggle
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
@@ -198,6 +204,7 @@ Item {
                 color: IslandConfig.foreground
                 opacity: 0.6
                 font.pixelSize: Math.round(IslandConfig.notifAppNameSize * root.uiScale)
+                Accessible.ignored: true
               }
 
               Image {
@@ -210,11 +217,11 @@ Item {
                 sourceSize: Qt.size(width, height)
                 asynchronous: true
                 fillMode: Image.PreserveAspectFit
-                visible: source != ""
+                visible: source !== ""
+                Accessible.ignored: true
               }
 
               Text {
-                id: groupName
                 anchors.left: groupIcon.visible ? groupIcon.right : chevron.right
                 anchors.leftMargin: groupIcon.visible ? Math.round(6 * root.uiScale) : 0
                 anchors.verticalCenter: parent.verticalCenter
@@ -246,6 +253,9 @@ Item {
                 color: IslandConfig.foreground
                 opacity: groupClearHover.containsMouse ? 1 : 0.6
                 font.pixelSize: Math.round(IslandConfig.notifBodySize * root.uiScale)
+
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Clear group")
 
                 MouseArea {
                   id: groupClearHover

@@ -3,6 +3,8 @@
 // or the app icon) beside a stacked column of app name, summary, body, inline
 // reply and action buttons, with a close button. Shared by the sidebar and the
 // transient toasts.
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -27,16 +29,21 @@ Rectangle {
       ? (root.notification.image || root.notification.appIcon || "")
       : ""
 
-  // All actions except the spec's "default" one, which is instead triggered by
-  // clicking the card body.
-  readonly property var actionList: {
+  // One pass over the actions: everything except the spec's "default" one,
+  // which is instead triggered by clicking the card body.
+  readonly property var actionData: {
+    const result = { list: [], defaultAction: null }
     const acts = root.notification ? root.notification.actions : []
-    return acts.filter(a => a.identifier !== "default")
+    for (let i = 0; i < acts.length; i++) {
+      if (acts[i].identifier === "default")
+        result.defaultAction = acts[i]
+      else
+        result.list.push(acts[i])
+    }
+    return result
   }
-  readonly property var defaultAction: {
-    const acts = root.notification ? root.notification.actions : []
-    return acts.find(a => a.identifier === "default") ?? null
-  }
+  readonly property var actionList: root.actionData.list
+  readonly property var defaultAction: root.actionData.defaultAction
 
   radius: Math.round(IslandConfig.notifCardRadius * root.uiScale)
   color: bodyPress.pressed || cardHover.hovered
@@ -88,7 +95,7 @@ Rectangle {
     Column {
       id: column
       width: row.width - (thumbFrame.visible ? thumbFrame.width + row.spacing : 0)
-      spacing: Math.round(IslandConfig.notifCardSpacing * root.uiScale)
+      spacing: root.gap
 
       Row {
         width: parent.width
@@ -105,11 +112,13 @@ Rectangle {
 
         Text {
           id: closeBtn
-          width: implicitWidth
           text: "✕"
           color: IslandConfig.foreground
           opacity: closeHover.containsMouse ? 1 : 0.55
           font.pixelSize: Math.round(IslandConfig.notifCloseSize * root.uiScale)
+
+          Accessible.role: Accessible.Button
+          Accessible.name: qsTr("Dismiss notification")
 
           MouseArea {
             id: closeHover
@@ -151,7 +160,6 @@ Rectangle {
 
       // Inline reply.
       TextField {
-        id: replyField
         width: parent.width
         visible: root.allowReply && (root.notification ? root.notification.hasInlineReply : false)
         placeholderText: root.notification && root.notification.inlineReplyPlaceholder
@@ -193,6 +201,9 @@ Rectangle {
             implicitWidth: actionLabel.implicitWidth + Math.round(16 * root.uiScale)
             implicitHeight: actionLabel.implicitHeight + Math.round(8 * root.uiScale)
             Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
+
+            Accessible.role: Accessible.Button
+            Accessible.name: actionBtn.modelData.text
 
             Text {
               id: actionLabel

@@ -8,6 +8,7 @@
 // `toasts` is a ListModel of keys driving the popups. ListModel can't hold
 // QObjects in Qt6, so Notification objects live in `objectMap` keyed by int.
 pragma Singleton
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
@@ -40,7 +41,8 @@ Singleton {
   readonly property alias toasts: toastModel
   ListModel { id: toastModel }
 
-  readonly property int count: root.server.trackedNotifications.values.length
+  // Number of tracked notifications; kept in sync by reconcile().
+  property int count: 0
 
   property var objectMap: ({})   // key -> Notification
   property var nidToKey: ({})    // appName+id -> key
@@ -96,6 +98,8 @@ Singleton {
     return out
   }
 
+  // ponytail: full reconcile is O(notifications × display rows); fine to a few
+  // hundred. Upgrade to an incremental nid→row map if the tracked list grows.
   function reconcile(): void {
     const live = root.server.trackedNotifications.values
     const liveNids = ({})
@@ -132,6 +136,27 @@ Singleton {
     }
 
     root.refreshGroups()
+    root.count = live.length
+    root.prune(liveNids)
+  }
+
+  // Drop key maps for notifications that are gone and have no live toast.
+  function prune(liveNids): void {
+    const toastKeys = ({})
+    for (let i = 0; i < toastModel.count; i++)
+      toastKeys[toastModel.get(i).key] = true
+
+    const nidMap = ({})
+    const objMap = ({})
+    for (const nid in root.nidToKey) {
+      const key = root.nidToKey[nid]
+      if (liveNids[nid] || toastKeys[key]) {
+        nidMap[nid] = key
+        objMap[key] = root.objectMap[key]
+      }
+    }
+    root.nidToKey = nidMap
+    root.objectMap = objMap
   }
 
   function setRowIf(index, role, value): void {
