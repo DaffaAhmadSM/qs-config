@@ -25,6 +25,8 @@ ShellRoot {
         left: true
         right: true
       }
+
+      implicitHeight: 32 * s
     }
   }
 
