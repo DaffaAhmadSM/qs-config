@@ -31,7 +31,14 @@ Item {
     anchors.bottom: parent.bottom
     width: root.widthPx
     x: root.open ? root.width - width : root.width
-    Behavior on x { enabled: root.ready; NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutCubic } }
+    Behavior on x {
+      enabled: root.ready
+      NumberAnimation {
+        duration: IslandConfig.motionDuration
+        easing.type: Easing.BezierSpline
+        easing.bezierCurve: IslandConfig.easeDrawer
+      }
+    }
 
     color: IslandConfig.background
     radius: 0
@@ -109,21 +116,43 @@ Item {
         anchors.bottom: parent.bottom
         anchors.margins: root.pad
         clip: true
-        spacing: root.gap
+        spacing: 0
         model: Notifications.display
         boundsBehavior: Flickable.StopAtBounds
 
         add: Transition {
-          NumberAnimation { property: "x"; from: list.width; to: 0; duration: IslandConfig.animationDuration; easing.type: Easing.OutCubic }
+          NumberAnimation {
+            property: "x"; from: list.width; to: 0
+            duration: IslandConfig.motionDuration
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: IslandConfig.easeOut
+          }
         }
 
         remove: Transition {
-          NumberAnimation { property: "x"; to: list.width; duration: IslandConfig.animationDuration; easing.type: Easing.InCubic }
-          NumberAnimation { property: "opacity"; to: 0; duration: IslandConfig.animationDuration; easing.type: Easing.InCubic }
+          // Keep the departing row above the one that replaces it.
+          PropertyAction { property: "z"; value: 1 }
+          NumberAnimation {
+            property: "x"; to: list.width
+            duration: IslandConfig.motionDuration
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: IslandConfig.easeOut
+          }
+          NumberAnimation {
+            property: "opacity"; to: 0
+            duration: IslandConfig.animationDuration
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: IslandConfig.easeOut
+          }
         }
 
         displaced: Transition {
-          NumberAnimation { property: "y"; duration: IslandConfig.animationDuration; easing.type: Easing.OutCubic }
+          NumberAnimation {
+            property: "y"
+            duration: IslandConfig.motionDuration
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: IslandConfig.easeOut
+          }
         }
 
         delegate: Item {
@@ -132,20 +161,27 @@ Item {
           required property int key
           required property string appName
           required property string appIcon
+          required property bool header
           required property bool isStart
           required property int groupSize
           required property int groupIndex
+          required property int index
 
-          readonly property var notification: Notifications.objectFor(key)
+          readonly property var notification: row.header ? null : Notifications.objectFor(key)
           readonly property bool multi: row.groupSize > 1
           readonly property bool expanded: Notifications.isExpanded(row.appName)
           // Members of a collapsed group are tucked away; fanning them out is
-          // the expand transition below.
-          readonly property bool tucked: row.multi && !row.isStart && !row.expanded
+          // the expand transition below. Header rows never tuck.
+          readonly property bool tucked: !row.header && row.multi && !row.isStart && !row.expanded
+          // Explicit per-row gap replaces ListView.spacing, so a group header
+          // hugs its first card instead of paying two gaps at every boundary.
+          readonly property real topGap: row.header
+            ? (row.index === 0 ? 0 : root.gap)
+            : ((row.isStart && row.multi) || row.index === 0 ? 0 : root.gap)
 
           width: list.width
           clip: true
-          height: content.implicitHeight
+          height: content.implicitHeight + row.topGap
           opacity: 1
 
           states: State {
@@ -159,12 +195,26 @@ Item {
           transitions: [
             Transition {
               from: "tucked"; to: ""
-              NumberAnimation { property: "height"; duration: IslandConfig.animationDuration; easing.type: Easing.InOutCubic }
+              // A member promoted to group head by a dismissal must appear
+              // instantly; only a real expand fans it out.
+              enabled: row.expanded
+              NumberAnimation {
+                property: "height"
+                duration: IslandConfig.motionDuration
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: IslandConfig.easeInOut
+              }
               SequentialAnimation {
                 PauseAnimation {
-                  duration: row.groupIndex * IslandConfig.notifAnimStagger
+                  duration: IslandConfig.reduceMotion
+                    ? 0 : Math.min(row.groupIndex, 5) * IslandConfig.notifAnimStagger
                 }
-                NumberAnimation { property: "opacity"; duration: IslandConfig.animationDuration; easing.type: Easing.InOutCubic }
+                NumberAnimation {
+                  property: "opacity"
+                  duration: IslandConfig.animationDuration
+                  easing.type: Easing.BezierSpline
+                  easing.bezierCurve: IslandConfig.easeInOut
+                }
               }
             }
           ]
@@ -173,34 +223,32 @@ Item {
             id: content
 
             width: row.width
-            implicitHeight: (groupHeader.visible ? groupHeader.height + root.gap : 0) + body.implicitHeight
+            y: row.topGap
+            implicitHeight: row.header ? headerItem.height : body.implicitHeight
 
-            // Group header, only on the group's first row.
+            // Group header row; it is its own model row so it never moves when
+            // the group's first card is dismissed.
             Item {
-              id: groupHeader
+              id: headerItem
 
               width: row.width
-              height: Math.max(groupIcon.visible ? groupIcon.height : 0, chevron.height, groupClear.height)
-              visible: row.multi && row.isStart
-
-              Accessible.role: Accessible.Button
-              Accessible.name: row.appName
-
-              MouseArea {
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: Notifications.toggleGroup(row.appName)
-              }
+              height: Math.max(groupIcon.visible ? groupIcon.height : 0, chevron.height, groupClear.height, groupToggle.height)
+              visible: row.header
 
               Text {
                 id: chevron
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
                 width: Math.round(10 * root.uiScale)
-                text: "▸"
+                // text: "▸"
                 rotation: row.expanded ? 90 : 0
-                Behavior on rotation { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutCubic } }
+                Behavior on rotation {
+                  NumberAnimation {
+                    duration: IslandConfig.motionDuration
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: IslandConfig.easeOut
+                  }
+                }
                 color: IslandConfig.foreground
                 opacity: 0.6
                 font.pixelSize: Math.round(IslandConfig.notifAppNameSize * root.uiScale)
@@ -226,6 +274,7 @@ Item {
                 anchors.leftMargin: groupIcon.visible ? Math.round(6 * root.uiScale) : 0
                 anchors.verticalCenter: parent.verticalCenter
                 width: parent.width - x - groupCount.width - groupClear.width
+                  - (row.expanded ? groupToggle.width + Math.round(6 * root.uiScale) : 0)
                   - 2 * Math.round(6 * root.uiScale)
                 elide: Text.ElideRight
                 text: row.appName
@@ -236,13 +285,37 @@ Item {
 
               Text {
                 id: groupCount
-                anchors.right: groupClear.left
+                anchors.right: row.expanded ? groupToggle.left : groupClear.left
                 anchors.rightMargin: Math.round(6 * root.uiScale)
                 anchors.verticalCenter: parent.verticalCenter
                 text: row.groupSize
                 color: IslandConfig.foreground
                 opacity: 0.5
                 font.pixelSize: Math.round(IslandConfig.notifAppNameSize * root.uiScale)
+              }
+
+              Text {
+                id: groupToggle
+                anchors.right: groupClear.left
+                anchors.rightMargin: Math.round(6 * root.uiScale)
+                anchors.verticalCenter: parent.verticalCenter
+                visible: row.expanded
+                text: qsTr("Group")
+                color: IslandConfig.foreground
+                opacity: groupToggleHover.containsMouse ? 1 : 0.6
+                font.pixelSize: Math.round(IslandConfig.notifBodySize * root.uiScale)
+
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Group notifications")
+
+                MouseArea {
+                  id: groupToggleHover
+                  anchors.fill: parent
+                  anchors.margins: -Math.round(4 * root.uiScale)
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: Notifications.toggleGroup(row.appName)
+                }
               }
 
               Text {
@@ -268,12 +341,12 @@ Item {
               }
             }
 
-            // Card body; the group's first row also shows the pile's back cards
-            // while collapsed.
+            // Card body; the group's first card also shows the pile's back
+            // cards while collapsed.
             Item {
               id: body
 
-              y: groupHeader.visible ? groupHeader.height + root.gap : 0
+              visible: !row.header
               width: row.width
               readonly property bool shellsVisible: row.multi && row.isStart && !row.expanded
               readonly property int shown: Math.min(row.groupSize, IslandConfig.notifPileMax)
@@ -281,7 +354,16 @@ Item {
               readonly property real inset: Math.round(IslandConfig.notifPileInset * root.uiScale)
               implicitHeight: frontCard.implicitHeight
                 + (shellsVisible ? (shown - 1) * peek : 0)
-              Behavior on implicitHeight { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutCubic } }
+              Behavior on implicitHeight {
+                // Only a real expand/collapse may grow the pile; a front card
+                // promoted by a dismissal appears at its final size.
+                enabled: row.expanded
+                NumberAnimation {
+                  duration: IslandConfig.motionDuration
+                  easing.type: Easing.BezierSpline
+                  easing.bezierCurve: IslandConfig.easeOut
+                }
+              }
 
               Repeater {
                 model: (row.multi && row.isStart) ? Math.min(row.groupSize, IslandConfig.notifPileMax) - 1 : 0
@@ -300,7 +382,13 @@ Item {
                   border.width: 1
                   opacity: body.shellsVisible ? 1 : 0
                   visible: opacity > 0
-                  Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
+                  Behavior on opacity {
+                    NumberAnimation {
+                      duration: IslandConfig.animationDuration
+                      easing.type: Easing.BezierSpline
+                      easing.bezierCurve: IslandConfig.easeOut
+                    }
+                  }
                 }
               }
 
@@ -310,7 +398,10 @@ Item {
                 width: body.width
                 uiScale: root.uiScale
                 showAppName: !row.multi
+                showClose: !row.multi || row.expanded
+                collapsed: row.multi && !row.expanded
                 notification: row.notification
+                onExpandRequested: Notifications.toggleGroup(row.appName)
               }
             }
           }

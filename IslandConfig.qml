@@ -70,7 +70,7 @@ Singleton {
   ]
 
   // Side navigation
-  property int navTargetWidth: 30 // width of each clickable side strip
+  property int navTargetWidth: 80 // width of each clickable side strip
   property int navMargin: 4       // inset of the hover background from the pill edge
   property int navGap: 8          // space between an arrow and the content
   property real navFeedbackOpacity: 0.12
@@ -119,6 +119,18 @@ Singleton {
 
   // Motion (ms)
   property int animationDuration: 240
+  // Movement (slide / height / rotation / scale) collapses to 0 with reduceMotion;
+  // opacity and colour fades keep animationDuration. Qt has no
+  // prefers-reduced-motion query, this flag is the manual equivalent.
+  property bool reduceMotion: false
+  readonly property int motionDuration: reduceMotion ? 0 : animationDuration
+  readonly property int pressDuration: reduceMotion ? 0 : 160
+
+  // Strong UI curves for Easing.BezierSpline: control1, control2, end (last point 1,1).
+  property var easeOut: [0.23, 1, 0.32, 1, 1, 1]     // entering / exiting
+  property var easeInOut: [0.77, 0, 0.175, 1, 1, 1]  // moving on screen
+  property var easeDrawer: [0.32, 0.72, 0, 1, 1, 1]  // panel slide (Ionic)
+
   property int workspaceDisplayDuration: 1000 // hold the workspace number before swapping back to the clock
 
   // Colours

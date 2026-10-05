@@ -395,7 +395,7 @@ PanelWindow {
     id: notifToasts
     anchors.fill: parent
     uiScale: root.uiScale
-    visible: !root.notificationsOpen
+    hidden: root.notificationsOpen
   }
 
   NotificationSidebar {

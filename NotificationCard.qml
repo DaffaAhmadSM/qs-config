@@ -18,8 +18,15 @@ Rectangle {
   property bool allowReply: true
   // Grouped cards hide the app name; the group header carries it.
   property bool showAppName: true
+  // Whether the per-card close button is shown. Hidden on collapsed piles,
+  // where a single ✕ can't say which notification it would dismiss.
+  property bool showClose: true
+  // Collapsed pile cards expand their group instead of firing the default
+  // action when clicked.
+  property bool collapsed: false
 
   signal closed()
+  signal expandRequested()
 
   readonly property real pad: Math.round(IslandConfig.notifCardPadding * root.uiScale)
   readonly property real gap: Math.round(IslandConfig.notifCardSpacing * root.uiScale)
@@ -51,18 +58,34 @@ Rectangle {
   border.color: bodyPress.pressed || cardHover.hovered
     ? IslandConfig.notifCardHoverBorder : IslandConfig.notifCardBorder
   border.width: 1
-  Behavior on color { ColorAnimation { duration: IslandConfig.animationDuration } }
-  Behavior on border.color { ColorAnimation { duration: IslandConfig.animationDuration } }
+  Behavior on color { ColorAnimation { duration: 160; easing.type: Easing.InOutQuad } }
+  Behavior on border.color { ColorAnimation { duration: 160; easing.type: Easing.InOutQuad } }
 
   implicitHeight: row.implicitHeight + 2 * root.pad
 
+  // Press feedback for the body click that fires the default action.
+  scale: bodyPress.pressed ? 0.98 : 1
+  Behavior on scale {
+    NumberAnimation {
+      duration: IslandConfig.pressDuration
+      easing.type: Easing.BezierSpline
+      easing.bezierCurve: IslandConfig.easeOut
+    }
+  }
+
   HoverHandler { id: cardHover }
 
-  // Body click fires the default action (when there is one).
+  // Body click fires the default action (when there is one); a collapsed pile
+  // card asks its group to expand instead.
   MouseArea {
     id: bodyPress
     anchors.fill: parent
-    onClicked: if (root.defaultAction) root.defaultAction.invoke()
+    onClicked: {
+      if (root.collapsed)
+        root.expandRequested()
+      else if (root.defaultAction)
+        root.defaultAction.invoke()
+    }
   }
 
   Row {
@@ -99,6 +122,9 @@ Rectangle {
 
       Row {
         width: parent.width
+        // Collapsed piles show neither; grouped headers carry the app name, so
+        // an expanded card shows only its close button.
+        visible: root.showAppName || root.showClose
 
         Text {
           width: parent.width - closeBtn.width
@@ -110,11 +136,21 @@ Rectangle {
           font.pixelSize: Math.round(IslandConfig.notifAppNameSize * root.uiScale)
         }
 
+        // The Row skips invisible children, so without this spacer a grouped
+        // card (no app name) would place its close button on the left.
+        Item {
+          width: parent.width - closeBtn.width
+          height: 1
+          visible: !root.showAppName && root.showClose
+        }
+
         Text {
           id: closeBtn
+          visible: root.showClose
           text: "✕"
           color: IslandConfig.foreground
-          opacity: closeHover.containsMouse ? 1 : 0.55
+          opacity: closeHover.pressed ? 0.35 : closeHover.containsMouse ? 1 : 0.55
+          Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutQuad } }
           font.pixelSize: Math.round(IslandConfig.notifCloseSize * root.uiScale)
 
           Accessible.role: Accessible.Button
@@ -198,9 +234,17 @@ Rectangle {
             radius: Math.round(IslandConfig.notifCardRadius * root.uiScale / 2)
             color: IslandConfig.foreground
             opacity: actionHover.containsMouse ? 0.2 : 0.1
+            scale: actionHover.pressed ? 0.97 : 1
             implicitWidth: actionLabel.implicitWidth + Math.round(16 * root.uiScale)
             implicitHeight: actionLabel.implicitHeight + Math.round(8 * root.uiScale)
-            Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
+            Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutQuad } }
+            Behavior on scale {
+              NumberAnimation {
+                duration: IslandConfig.pressDuration
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: IslandConfig.easeOut
+              }
+            }
 
             Accessible.role: Accessible.Button
             Accessible.name: actionBtn.modelData.text

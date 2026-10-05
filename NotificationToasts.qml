@@ -12,6 +12,19 @@ Item {
 
   required property real uiScale
 
+  // Faded out while the sidebar covers the toast corner, so toasts never
+  // teleport in or out.
+  property bool hidden: false
+  opacity: hidden ? 0 : 1
+  visible: opacity > 0
+  Behavior on opacity {
+    NumberAnimation {
+      duration: IslandConfig.animationDuration
+      easing.type: Easing.BezierSpline
+      easing.bezierCurve: IslandConfig.easeOut
+    }
+  }
+
   Accessible.role: Accessible.Grouping
   Accessible.name: qsTr("Notifications")
 
@@ -35,15 +48,30 @@ Item {
     boundsBehavior: Flickable.StopAtBounds
 
     add: Transition {
-      NumberAnimation { property: "x"; from: list.width; to: 0; duration: IslandConfig.animationDuration; easing.type: Easing.OutCubic }
+      NumberAnimation {
+        property: "x"; from: list.width; to: 0
+        duration: IslandConfig.motionDuration
+        easing.type: Easing.BezierSpline
+        easing.bezierCurve: IslandConfig.easeOut
+      }
     }
 
     remove: Transition {
-      NumberAnimation { property: "x"; to: list.width; duration: IslandConfig.animationDuration; easing.type: Easing.InCubic }
+      NumberAnimation {
+        property: "x"; to: list.width
+        duration: IslandConfig.motionDuration
+        easing.type: Easing.BezierSpline
+        easing.bezierCurve: IslandConfig.easeOut
+      }
     }
 
     displaced: Transition {
-      NumberAnimation { property: "y"; duration: IslandConfig.animationDuration; easing.type: Easing.OutCubic }
+      NumberAnimation {
+        property: "y"
+        duration: IslandConfig.motionDuration
+        easing.type: Easing.BezierSpline
+        easing.bezierCurve: IslandConfig.easeOut
+      }
     }
 
     delegate: NotificationCard {

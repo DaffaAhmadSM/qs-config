@@ -55,17 +55,38 @@ Item {
     interval: IslandConfig.animationDuration
     onTriggered: root.inactiveLoader.sourceComponent = null
   }
+//
+//   Item {
+//       id: viewTitleBlock
+//       anchors.top: parent.top
+//       anchors.horizontalCenter: parent.horizontalCenter
+//       anchors.topMargin: Math.round(IslandConfig.expandedPaddingY * root.uiScale)
+//       Text {
+//         anchors.top: parent.top
+//         id: viewTitle
+//         width: parent.width
+//         height: root.headerHeight
+//         verticalAlignment: Text.AlignVCenter
+//         horizontalAlignment: Text.AlignHCenter
+//         text: root.viewName
+//         color: IslandConfig.foreground
+//         font.bold: true
+//         font.pixelSize: Math.round(IslandConfig.headerSize * root.uiScale)
+//       }
+//   }
 
   // Content block: title above the active view.
   Item {
     id: viewColumn
     anchors.horizontalCenter: parent.horizontalCenter
-    anchors.top: parent.top
+    anchors.verticalCenter: parent.verticalCenter
+    // anchors.top: parent.top
     anchors.topMargin: Math.round(IslandConfig.expandedPaddingY * root.uiScale)
     width: root.contentWidth
     height: viewTitle.height + viewHost.height + Math.round(IslandConfig.mediaSpacing * root.uiScale)
 
     Text {
+      anchors.top: parent.top
       id: viewTitle
       width: parent.width
       height: root.headerHeight
@@ -116,21 +137,18 @@ Item {
     Accessible.role: Accessible.Button
     Accessible.name: qsTr("Previous view")
 
-    Rectangle {
-      anchors.fill: parent
-      anchors.margins: Math.round(IslandConfig.navMargin * root.uiScale)
-      radius: Math.round(IslandConfig.radiusCollapsed * root.uiScale)
-      color: IslandConfig.foreground
-      opacity: prevHover.pressed ? 0.18
-        : prevHover.containsMouse ? IslandConfig.navFeedbackOpacity : 0
-      Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
-    }
-
     Text {
       anchors.centerIn: parent
+
       text: "❮"
       color: IslandConfig.foreground
-      font.pixelSize: Math.round(IslandConfig.arrowSize * root.uiScale)
+      opacity: prevHover.pressed ? 1
+        : prevHover.containsMouse ? 1 : 0.5
+      font.pointSize: prevHover.pressed ? Math.round(IslandConfig.arrowSize * 1.2 * root.uiScale)
+        : prevHover.containsMouse ? Math.round(IslandConfig.arrowSize * root.uiScale)
+        : Math.round(IslandConfig.arrowSize * 0.8 * root.uiScale)
+      Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
+      Behavior on font.pointSize { NumberAnimation { duration: IslandConfig.animationDuration * 0.4 } }
       Accessible.ignored: true
     }
 
@@ -153,21 +171,17 @@ Item {
     Accessible.role: Accessible.Button
     Accessible.name: qsTr("Next view")
 
-    Rectangle {
-      anchors.fill: parent
-      anchors.margins: Math.round(IslandConfig.navMargin * root.uiScale)
-      radius: Math.round(IslandConfig.radiusCollapsed * root.uiScale)
-      color: IslandConfig.foreground
-      opacity: nextHover.pressed ? 0.18
-        : nextHover.containsMouse ? IslandConfig.navFeedbackOpacity : 0
-      Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
-    }
-
     Text {
       anchors.centerIn: parent
       text: "❯"
       color: IslandConfig.foreground
-      font.pixelSize: Math.round(IslandConfig.arrowSize * root.uiScale)
+      opacity: nextHover.pressed ? 1
+        : nextHover.containsMouse ? 1 : 0.5
+        font.pointSize: nextHover.pressed ? Math.round(IslandConfig.arrowSize * 1.2 * root.uiScale)
+        : nextHover.containsMouse ? Math.round(IslandConfig.arrowSize * root.uiScale)
+        : Math.round(IslandConfig.arrowSize * 0.8 * root.uiScale)
+      Behavior on opacity { NumberAnimation { duration: IslandConfig.animationDuration } }
+      Behavior on font.pointSize { NumberAnimation { duration: IslandConfig.animationDuration * 0.4 } }
       Accessible.ignored: true
     }
 

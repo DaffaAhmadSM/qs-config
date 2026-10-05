@@ -32,8 +32,9 @@ Singleton {
     }
   }
 
-  // Sidebar model: roles key, nid, appName, appIcon, isStart, groupSize,
-  // groupIndex.
+  // Sidebar model: roles header, key, nid, appName, appIcon, isStart,
+  // groupSize, groupIndex. Each group with 2+ notifications gets a leading
+  // header row that stays put when the group's first card is dismissed.
   readonly property alias display: displayModel
   ListModel { id: displayModel }
 
@@ -60,10 +61,15 @@ Singleton {
   function keyOf(notification): int {
     const nid = root.nidOf(notification)
     let key = root.nidToKey[nid]
-    if (key === undefined) {
+    if (key === undefined)
       key = root.nextKey++
-      root.nidToKey[nid] = key
-      root.objectMap[key] = notification
+    root.nidToKey[nid] = key
+    // Reassign so bindings on objectFor() see a replacement notification that
+    // reuses a key while prune is lagging.
+    if (root.objectMap[key] !== notification) {
+      const next = Object.assign({}, root.objectMap)
+      next[key] = notification
+      root.objectMap = next
     }
     return key
   }
@@ -106,10 +112,13 @@ Singleton {
     for (let i = 0; i < live.length; i++)
       liveNids[root.nidOf(live[i])] = true
 
-    // Drop rows whose notification is gone.
-    for (let i = displayModel.count - 1; i >= 0; i--)
-      if (!liveNids[displayModel.get(i).nid])
+    // Drop card rows whose notification is gone; header rows are synced by
+    // refreshGroups.
+    for (let i = displayModel.count - 1; i >= 0; i--) {
+      const row = displayModel.get(i)
+      if (!row.header && !liveNids[row.nid])
         displayModel.remove(i)
+    }
 
     // Insert rows for new notifications at the start of their group (newest
     // first).
@@ -118,13 +127,18 @@ Singleton {
       if (root.rowIndexFor(root.nidOf(n)) !== -1)
         continue
       const app = n.appName || ""
+      // First card of the app, after its header row if it has one (newest
+      // first).
       let pos = displayModel.count
-      for (let j = 0; j < displayModel.count; j++)
-        if (displayModel.get(j).appName === app) {
+      for (let j = 0; j < displayModel.count; j++) {
+        const row = displayModel.get(j)
+        if (row.appName === app && !row.header) {
           pos = j
           break
         }
+      }
       displayModel.insert(pos, {
+        header: false,
         key: root.keyOf(n),
         nid: root.nidOf(n),
         appName: app,
@@ -137,11 +151,17 @@ Singleton {
 
     root.refreshGroups()
     root.count = live.length
-    root.prune(liveNids)
+    // Prune after the exit animations so departing cards keep their content.
+    pruneTimer.restart()
   }
 
   // Drop key maps for notifications that are gone and have no live toast.
-  function prune(liveNids): void {
+  function prune(): void {
+    const live = root.server.trackedNotifications.values
+    const liveNids = ({})
+    for (let i = 0; i < live.length; i++)
+      liveNids[root.nidOf(live[i])] = true
+
     const toastKeys = ({})
     for (let i = 0; i < toastModel.count; i++)
       toastKeys[toastModel.get(i).key] = true
@@ -159,26 +179,62 @@ Singleton {
     root.objectMap = objMap
   }
 
+  Timer {
+    id: pruneTimer
+    interval: IslandConfig.animationDuration + 50
+    onTriggered: root.prune()
+  }
+
   function setRowIf(index, role, value): void {
     if (displayModel.get(index)[role] !== value)
       displayModel.setProperty(index, role, value)
   }
 
-  // Recompute isStart/groupSize/groupIndex over each contiguous app run.
+  // Recompute card roles and keep exactly one header row at the start of every
+  // group with two or more notifications.
   function refreshGroups(): void {
-    let start = 0
-    while (start < displayModel.count) {
-      const app = displayModel.get(start).appName
-      let end = start
+    let i = 0
+    while (i < displayModel.count) {
+      const app = displayModel.get(i).appName
+      let end = i
       while (end < displayModel.count && displayModel.get(end).appName === app)
         end++
+
+      let start = i
+      const hasHeader = displayModel.get(start).header === true
+      if (hasHeader)
+        start++
       const size = end - start
-      for (let i = start; i < end; i++) {
-        root.setRowIf(i, "isStart", i === start)
-        root.setRowIf(i, "groupSize", size)
-        root.setRowIf(i, "groupIndex", i - start)
+
+      if (size > 1 && !hasHeader) {
+        displayModel.insert(i, {
+          header: true,
+          key: -1,
+          nid: "",
+          appName: app,
+          appIcon: displayModel.get(start).appIcon,
+          isStart: false,
+          groupSize: size,
+          groupIndex: 0
+        })
+        end++
+        start++
+      } else if (size < 2 && hasHeader) {
+        displayModel.remove(i)
+        end--
+        start--
       }
-      start = end
+
+      const cards = end - start
+      for (let j = start; j < end; j++) {
+        root.setRowIf(j, "isStart", j === start)
+        root.setRowIf(j, "groupSize", cards)
+        root.setRowIf(j, "groupIndex", j - start)
+      }
+      if (start > i)
+        root.setRowIf(i, "groupSize", cards)
+
+      i = end
     }
   }
 
