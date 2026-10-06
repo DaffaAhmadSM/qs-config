@@ -1,17 +1,18 @@
 // BubbleChip.qml
-// One chip of the collapsed bar (same look as the pill). `tray` draws the tray
-// glyph; `icon` (a system icon path) draws an image instead. Owns its hover
-// feedback and click, emitting events for the bar to route.
+// One chip of the collapsed bar (same look as the pill): draws `icon`, a system
+// icon path, or a placeholder when none is set. Owns its hover feedback and
+// click, emitting events for the bar to route.
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Effects
+
 
 Rectangle {
   id: chip
 
   required property real uiScale
   property bool shown: false
-  property bool tray: false
   property string icon: ""
   property string label: ""
 
@@ -32,7 +33,7 @@ Rectangle {
 
   // Placeholder icon.
   Rectangle {
-    visible: !chip.tray && chip.icon === ""
+    visible: chip.icon === ""
     anchors.centerIn: parent
     width: Math.round(IslandConfig.bubbleIconSize * chip.uiScale)
     height: width
@@ -42,17 +43,9 @@ Rectangle {
     Accessible.ignored: true
   }
 
-  // Tray icon.
-  TrayGlyph {
-    visible: chip.tray && chip.icon === ""
-    anchors.centerIn: parent
-    width: Math.round(IslandConfig.bubbleIconSize * chip.uiScale)
-    height: width
-  }
-
   // System icon.
   Image {
-    visible: chip.icon !== ""
+    id: chipIcon
     anchors.centerIn: parent
     source: chip.icon
     sourceSize: Qt.size(Math.round(IslandConfig.bubbleIconSize * chip.uiScale),
@@ -60,6 +53,16 @@ Rectangle {
     asynchronous: true
     fillMode: Image.PreserveAspectFit
     Accessible.ignored: true
+    visible: false
+  }
+
+
+  MultiEffect {
+    anchors.fill: chipIcon
+    source: chipIcon
+    visible: chip.icon !== ""
+    colorizationColor: IslandConfig.foreground
+    colorization: 1.0
   }
 
   MouseArea {

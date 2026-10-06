@@ -9,7 +9,7 @@ import Quickshell
 
 Singleton {
   // Sizes (px)
-  property int widthCollapsed: 400
+  property int widthCollapsed:290
   property int widthExpanded: 400
   property int heightCollapsed: 32
   property int heightExpanded: 200 // minimum; expanded height auto-sizes to the view
@@ -32,6 +32,7 @@ Singleton {
 
   // Collapsed hover: the bar splits into [clock][chips] within widthCollapsed.
   property string trayBubbleSide: "right"  // "left" | "right"
+  property string trayChipIcon: "assets/tray.svg"
   property string notifBubbleSide: "right" // "left" | "right"
   property real hoverPillFraction: 0.6 // clock share; chips split the rest
   property int bubbleIconSize: 18
@@ -103,10 +104,10 @@ Singleton {
   property int notifToastMax: 5
   property int notifToastDuration: 2000 // ms before a toast expires (restarts on unhover)
   property string notifChipIcon: "assets/bell.svg"
-  property color notifCardSurface: "#171717"
-  property color notifCardBorder: "#2a2a2a"
-  property color notifCardHoverSurface: "#1f1f1f"
-  property color notifCardHoverBorder: "#3a3a3a"
+  property color notifCardSurface: darkBackground
+  property color notifCardBorder: darkerForeground
+  property color notifCardHoverSurface: lighterBackground2
+  property color notifCardHoverBorder: darkerForeground
 
   // Media view
   property int mediaArtSize: 48
@@ -134,6 +135,56 @@ Singleton {
   property int workspaceDisplayDuration: 1000 // hold the workspace number before swapping back to the clock
 
   // Colours
-  property color background: "#0d0d0d"
-  property color foreground: "#f2f2f2"
+  property color background: "#1F1F28"
+  property color darkBackground: "#16161D"
+  property color lighterBackground1: '#2A2A37'
+  property color lighterBackground2: '#363646'
+  property color darkForeground: "#C8C093"
+  property color foreground: "#DCD7BA"
+  property color darkerForeground: "#54546D"
+  property color accent: "#223249"
+
+  // kanagawa color scheme
+  // https://github.com/rebelot/kanagawa.nvim
+  //
+  // | Name          |    Hex    | Usage                                                                             |
+  // | :------------ | :-------: | :-------------------------------------------------------------------------------- |
+  // | fujiWhite     | `#DCD7BA` | Default foreground                                                                |
+  // | oldWhite      | `#C8C093` | Dark foreground (statuslines)                                                     |
+  // | sumiInk0      | `#16161D` | Dark background (statuslines and floating windows)                                |
+  // | sumiInk1      | `#1F1F28` | Default background                                                                |
+  // | sumiInk2      | `#2A2A37` | Lighter background (colorcolumn, folds)                                           |
+  // | sumiInk3      | `#363646` | Lighter background (cursorline)                                                   |
+  // | sumiInk4      | `#54546D` | Darker foreground (line numbers, fold column, non-text characters), float borders |
+  // | waveBlue1     | `#223249` | Popup background, visual selection background                                     |
+  // | waveBlue2     | `#2D4F67` | Popup selection background, search background                                     |
+  // | winterGreen   | `#2B3328` | Diff Add (background)                                                             |
+  // | winterYellow  | `#49443C` | Diff Change (background)                                                          |
+  // | winterRed     | `#43242B` | Diff Deleted (background)                                                         |
+  // | winterBlue    | `#252535` | Diff Line (background)                                                            |
+  // | autumnGreen   | `#76946A` | Git Add                                                                           |
+  // | autumnRed     | `#C34043` | Git Delete                                                                        |
+  // | autumnYellow  | `#DCA561` | Git Change                                                                        |
+  // | samuraiRed    | `#E82424` | Diagnostic Error                                                                  |
+  // | roninYellow   | `#FF9E3B` | Diagnostic Warning                                                                |
+  // | waveAqua1     | `#6A9589` | Diagnostic Info                                                                   |
+  // | dragonBlue    | `#658594` | Diagnostic Hint                                                                   |
+  // | fujiGray      | `#727169` | Comments                                                                          |
+  // | springViolet1 | `#938AA9` | Light foreground                                                                  |
+  // | oniViolet     | `#957FB8` | Statements and Keywords                                                           |
+  // | crystalBlue   | `#7E9CD8` | Functions and Titles                                                              |
+  // | springViolet2 | `#9CABCA` | Brackets and punctuation                                                          |
+  // | springBlue    | `#7FB4CA` | Specials and builtin functions                                                    |
+  // | lightBlue     | `#A3D4D5` | Not used                                                                          |
+  // | waveAqua2     | `#7AA89F` | Types                                                                             |
+  // | springGreen   | `#98BB6C` | Strings                                                                           |
+  // | boatYellow1   | `#938056` | Not used                                                                          |
+  // | boatYellow2   | `#C0A36E` | Operators, RegEx                                                                  |
+  // | carpYellow    | `#E6C384` | Identifiers                                                                       |
+  // | sakuraPink    | `#D27E99` | Numbers                                                                           |
+  // | waveRed       | `#E46876` | Standout specials 1 (builtin variables)                                           |
+  // | peachRed      | `#FF5D62` | Standout specials 2 (exception handling, return)                                  |
+  // | surimiOrange  | `#FFA066` | Constants, imports, booleans                                                      |
+  // | katanaGray    | `#717C7C` | Deprecated                                                                        |
+  //
 }

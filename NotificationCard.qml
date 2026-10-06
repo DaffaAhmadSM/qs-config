@@ -232,8 +232,8 @@ Rectangle {
             required property var modelData
 
             radius: Math.round(IslandConfig.notifCardRadius * root.uiScale / 2)
-            color: IslandConfig.foreground
-            opacity: actionHover.containsMouse ? 0.2 : 0.1
+            color: IslandConfig.accent
+            opacity: actionHover.containsMouse ? 1: 0.5
             scale: actionHover.pressed ? 0.97 : 1
             implicitWidth: actionLabel.implicitWidth + Math.round(16 * root.uiScale)
             implicitHeight: actionLabel.implicitHeight + Math.round(8 * root.uiScale)

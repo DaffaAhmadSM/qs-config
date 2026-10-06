@@ -25,7 +25,7 @@ Item {
   readonly property var chips: {
     const defs = [
       { kind: "notif", label: qsTr("Notifications"), side: IslandConfig.notifBubbleSide, icon: IslandConfig.notifChipIcon },
-      { kind: "tray", label: qsTr("Tray"), side: IslandConfig.trayBubbleSide, icon: "" },
+      { kind: "tray", label: qsTr("Tray"), side: IslandConfig.trayBubbleSide, icon: IslandConfig.trayChipIcon },
       { kind: "power", label: qsTr("Power"), side: IslandConfig.powerBubbleSide, icon: IslandConfig.powerChipIcon }
     ]
     let left = 0, right = 0
@@ -120,7 +120,6 @@ Item {
       width: root.chipW
       shown: root.chipsShown
       label: modelData.label
-      tray: modelData.kind === "tray"
       icon: modelData.icon ?? ""
       x: root.chipX(modelData)
 
