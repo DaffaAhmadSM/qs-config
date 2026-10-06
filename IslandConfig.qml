@@ -54,7 +54,7 @@ Singleton {
   property int tooltipSize: 12
 
   // Power chip + menu
-  property string powerBubbleSide: "right" // "left" | "right"
+  property string powerBubbleSide: "left" // "left" | "right"
   property string powerChipIcon: "assets/power.svg"
   property int powerPopupWidth: 160
   property real powerRowHeight: 30

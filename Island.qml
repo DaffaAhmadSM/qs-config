@@ -372,7 +372,7 @@ PanelWindow {
   }
 
   TrayPopup {
-    parentWindow: root
+    anchor.window: root
     bar: pill
     anchorCenterX: root.chipAnchorX
     open: root.trayOpen
@@ -382,7 +382,7 @@ PanelWindow {
   }
 
   PowerPopup {
-    parentWindow: root
+    anchor.window: root
     bar: pill
     anchorCenterX: root.chipAnchorX
     open: root.powerOpen
