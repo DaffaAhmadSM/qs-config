@@ -15,6 +15,10 @@ Item {
   required property real pillRadius
   required property bool showingWorkspace
   required property bool chipsShown
+  // Notch mode: the island paints one bathtub background, so the clock/chips
+  // stop painting their own. `inset` keeps them clear of the pinched corners.
+  property bool notch: false
+  property real inset: 0
 
   signal chipClicked(string kind, real centerX)
   signal chipHovered(string label, real centerX)
@@ -41,29 +45,34 @@ Item {
   readonly property int rightCount: root.chips.length - root.leftCount
 
   readonly property real segGap: Math.round(IslandConfig.bubbleSegmentGap * root.uiScale)
+  // The split content is pulled in from the pill edges as the hover progresses.
+  readonly property real hoverMargin: Math.round(IslandConfig.bubbleHoverMargin * root.uiScale) * root.split
+  readonly property real contentInset: root.inset + root.hoverMargin
+  // Usable bar span once the inset is removed.
+  readonly property real barW: root.collapsedW - 2 * root.contentInset
   // Full-hover chip width; the live width scales it by the animated `split`.
   readonly property real chipW0: Math.max(0, Math.round(
-    (root.collapsedW * (1 - IslandConfig.hoverPillFraction) - root.chips.length * root.segGap) / root.chips.length))
+    (root.barW * (1 - IslandConfig.hoverPillFraction) - root.chips.length * root.segGap) / root.chips.length))
   readonly property real chipW: root.chipW0 * root.split
   readonly property real leftPanelW: root.leftCount * (root.chipW0 + root.segGap) * root.split
   readonly property real rightPanelW: root.rightCount * (root.chipW0 + root.segGap) * root.split
-  readonly property real clockW: root.collapsedW - root.chips.length * (root.chipW0 + root.segGap)
+  readonly property real clockW: root.barW - root.chips.length * (root.chipW0 + root.segGap)
 
   // X of a chip within the bar, laid out outwards from the clock.
   function chipX(chip): real {
     return chip.side === "left"
-      ? root.leftPanelW - root.segGap - root.chipW - chip.slot * (root.chipW + root.segGap)
-      : root.collapsedW - root.rightPanelW + chip.slot * (root.chipW + root.segGap) + root.segGap
+      ? root.contentInset + root.leftPanelW - root.segGap - root.chipW - chip.slot * (root.chipW + root.segGap)
+      : root.contentInset + root.barW - root.rightPanelW + chip.slot * (root.chipW + root.segGap) + root.segGap
   }
 
   // Clock segment. Idle (split 0) it is exactly the pill; on hover (split 1) it
   // shrinks to clockW and the chips appear.
   Rectangle {
-    x: root.leftPanelW
-    width: parent.width + (root.clockW - parent.width) * root.split
+    x: root.contentInset + root.leftPanelW
+    width: root.barW + (root.clockW - root.barW) * root.split
     height: parent.height
     radius: root.pillRadius
-    color: IslandConfig.background
+    color: root.notch ? "transparent" : IslandConfig.background
     clip: true
 
     // Clock face; slides up and fades out while the workspace shows.
@@ -119,6 +128,7 @@ Item {
       uiScale: root.uiScale
       width: root.chipW
       shown: root.chipsShown
+      notch: root.notch
       label: modelData.label
       icon: modelData.icon ?? ""
       x: root.chipX(modelData)

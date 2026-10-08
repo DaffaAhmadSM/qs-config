@@ -13,6 +13,7 @@ Rectangle {
 
   required property real uiScale
   property bool shown: false
+  property bool notch: false
   property string icon: ""
   property string label: ""
 
@@ -25,7 +26,8 @@ Rectangle {
 
   height: parent ? parent.height : 0
   radius: Math.round(IslandConfig.bubbleRadius * chip.uiScale)
-  color: IslandConfig.background
+  // Notch mode: the island paints one bathtub background, so the chip stays clear.
+  color: chip.notch ? "transparent" : IslandConfig.background
   clip: true
   enabled: chip.shown
   opacity: chip.shown ? 1 : 0

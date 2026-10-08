@@ -17,6 +17,11 @@ Singleton {
   property int radiusExpanded: 26
   property int topMargin: 2
 
+  // Island notch (bathtub) background instead of the floating pill
+  property bool islandNotch: true
+  property int islandNotchTopRadius: 22 // concave fillet where the notch pinches off the top edge
+  property int islandNotchBottomRadius: 18 // convex rounding of the notch's bottom corners
+
   // Inner padding of the expanded view
   property int expandedPaddingY: 14
 
@@ -38,6 +43,7 @@ Singleton {
   property int bubbleIconSize: 18
   property int bubbleRadius: 16
   property int bubbleSegmentGap: 6
+  property int bubbleHoverMargin: 8 // inset of the split content from the pill edges on hover
   property int bubbleHoverPadding: 8 // hover tolerance around the bar (px)
   property int bubbleHoverLatch: 240 // ms to keep hover after the cursor leaves
 

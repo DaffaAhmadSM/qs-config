@@ -9,6 +9,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Shapes
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Services.Mpris
@@ -18,6 +19,11 @@ PanelWindow {
 
   required property ShellScreen monitor
   required property real uiScale
+
+  // Bathtub notch background (flat top flush to the edge) instead of the pill.
+  readonly property bool notch: IslandConfig.islandNotch
+  readonly property real notchTop: Math.round(IslandConfig.islandNotchTopRadius * root.uiScale)
+  readonly property real notchBottom: Math.round(IslandConfig.islandNotchBottomRadius * root.uiScale)
 
   // Hyprland's focused monitor. Falls back to showing on every monitor when
   // there is no focus information (e.g. not running Hyprland).
@@ -184,6 +190,9 @@ PanelWindow {
       split: root.split
       collapsedW: root.collapsedW
       pillRadius: pill.radius
+      notch: root.notch
+      // Keep the chips clear of the notch's pinched top corners.
+      inset: root.notch ? root.notchTop : 0
       showingWorkspace: root.showingWorkspace
       chipsShown: root.collapsedHovered
 
@@ -304,7 +313,7 @@ PanelWindow {
     id: pill
     anchors.horizontalCenter: parent.horizontalCenter
     anchors.top: parent.top
-    anchors.topMargin: Math.round(IslandConfig.topMargin * root.uiScale)
+    anchors.topMargin: root.notch ? 0 : Math.round(IslandConfig.topMargin * root.uiScale)
 
     width: Math.round((root.expanded ? IslandConfig.widthExpanded : IslandConfig.widthCollapsed) * root.uiScale)
     height: root.expanded
@@ -312,13 +321,50 @@ PanelWindow {
       : Math.round(IslandConfig.heightCollapsed * root.uiScale)
     radius: Math.round((root.expanded ? IslandConfig.radiusExpanded : IslandConfig.radiusCollapsed) * root.uiScale)
     // Collapsed segments paint their own backgrounds (so gaps show through);
-    // the expanded island paints it here.
-    color: root.expanded ? IslandConfig.background : "transparent"
+    // the expanded island paints it here. In notch mode the Shape below paints.
+    color: root.expanded && !root.notch ? IslandConfig.background : "transparent"
 
     Behavior on width { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutCubic } }
     Behavior on height { NumberAnimation { duration: IslandConfig.animationDuration; easing.type: Easing.OutCubic } }
     Behavior on radius { NumberAnimation { duration: IslandConfig.animationDuration } }
     Behavior on color { ColorAnimation { duration: IslandConfig.animationDuration } }
+
+    // Bathtub notch silhouette, drawn for both collapsed and expanded states.
+    Shape {
+      anchors.fill: parent
+      visible: root.notch
+      antialiasing: true
+      preferredRendererType: Shape.CurveRenderer
+
+      ShapePath {
+        fillColor: IslandConfig.background
+        strokeWidth: 0
+        startX: 0
+        startY: 0
+        PathLine { x: pill.width; y: 0 }
+        PathArc {
+          x: pill.width - root.notchTop; y: root.notchTop
+          radiusX: root.notchTop; radiusY: root.notchTop
+          direction: PathArc.Counterclockwise
+        }
+        PathLine { x: pill.width - root.notchTop; y: pill.height - root.notchBottom }
+        PathArc {
+          x: pill.width - root.notchTop - root.notchBottom; y: pill.height
+          radiusX: root.notchBottom; radiusY: root.notchBottom
+        }
+        PathLine { x: root.notchTop + root.notchBottom; y: pill.height }
+        PathArc {
+          x: root.notchTop; y: pill.height - root.notchBottom
+          radiusX: root.notchBottom; radiusY: root.notchBottom
+        }
+        PathLine { x: root.notchTop; y: root.notchTop }
+        PathArc {
+          x: 0; y: 0
+          radiusX: root.notchTop; radiusY: root.notchTop
+          direction: PathArc.Counterclockwise
+        }
+      }
+    }
 
     // Open only; closing is done by clicking outside or pressing Escape. Sits
     // above the dismiss catcher so a pill click never closes the island.
