@@ -102,7 +102,7 @@ Singleton {
   property int notifToastTopMargin: 48
   property int notifToastRightMargin: 12
   property int notifToastMax: 5
-  property int notifToastDuration: 2000 // ms before a toast expires (restarts on unhover)
+  property int notifToastDuration: 3100 // ms before a toast expires (restarts on unhover)
   property string notifChipIcon: "assets/bell.svg"
   property color notifCardSurface: darkBackground
   property color notifCardBorder: darkerForeground
@@ -133,6 +133,17 @@ Singleton {
   property var easeDrawer: [0.32, 0.72, 0, 1, 1, 1]  // panel slide (Ionic)
 
   property int workspaceDisplayDuration: 1000 // hold the workspace number before swapping back to the clock
+
+  // Workspaces widget (top-left bathtub notch dropdown, one per monitor)
+  property bool wsAlwaysShow: true // keep the panel open without hovering
+  property int wsHoverHeight: 24 // top-left hover band that drops the panel
+  property int wsNotchTopRadius: 14 // concave fillet where the notch pinches off the top edge
+  property int wsNotchBottomRadius: 8 // convex rounding of the notch's bottom corners
+  property int wsPadding: 6
+  property int wsItemSize: 22
+  property int wsItemSpacing: 5
+  property int wsFontSize: 12
+  property int wsRadius: 8
 
   // Colours
   property color background: "#1F1F28"

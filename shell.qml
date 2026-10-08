@@ -40,4 +40,15 @@ ShellRoot {
       uiScale: modelData ? modelData.height / 1080 : 1
     }
   }
+
+  // Workspace rail: one per monitor, hidden until hovered.
+  Variants {
+    model: Quickshell.screens
+
+    Workspaces {
+      required property var modelData
+      monitor: modelData
+      uiScale: modelData ? modelData.height / 1080 : 1
+    }
+  }
 }
