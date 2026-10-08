@@ -17,6 +17,19 @@ import Quickshell.Services.Notifications
 Singleton {
   id: root
 
+  // Silent mode. Tracked notifications still reach the sidebar; only the
+  // transient popups are suppressed. Persisted across reloads.
+  PersistentProperties {
+    id: persistent
+    reloadableId: "notifications"
+    property bool doNotDisturb: false
+  }
+  readonly property bool doNotDisturb: persistent.doNotDisturb
+
+  function toggleDnd(): void {
+    persistent.doNotDisturb = !persistent.doNotDisturb
+  }
+
   readonly property NotificationServer server: NotificationServer {
     keepOnReload: true
     inlineReplySupported: true
@@ -26,8 +39,8 @@ Singleton {
     onNotification: (notification) => {
       notification.tracked = true
       // Notifications carried over a reload are already in the sidebar; don't
-      // re-toast them.
-      if (!notification.lastGeneration)
+      // re-toast them. Silent mode also skips the toast.
+      if (!notification.lastGeneration && !root.doNotDisturb)
         root.pushToast(notification)
     }
   }

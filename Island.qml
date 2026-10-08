@@ -202,6 +202,10 @@ PanelWindow {
         root.powerOpen = kind === "power"
         root.notificationsOpen = kind === "notif"
       }
+      onChipRightClicked: (kind) => {
+        if (kind === "notif")
+          Notifications.toggleDnd()
+      }
       onChipHovered: (label, centerX) => {
         root.hoveredChipLabel = label
         root.hoveredChipCenterX = centerX

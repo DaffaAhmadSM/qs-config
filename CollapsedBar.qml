@@ -21,6 +21,7 @@ Item {
   property real inset: 0
 
   signal chipClicked(string kind, real centerX)
+  signal chipRightClicked(string kind)
   signal chipHovered(string label, real centerX)
   signal chipUnhovered(string label)
 
@@ -129,11 +130,14 @@ Item {
       width: root.chipW
       shown: root.chipsShown
       notch: root.notch
-      label: modelData.label
-      icon: modelData.icon ?? ""
+      label: modelData.kind === "notif" && Notifications.doNotDisturb
+        ? qsTr("Notifications muted") : modelData.label
+      icon: modelData.kind === "notif" && Notifications.doNotDisturb
+        ? IslandConfig.notifChipIconMuted : (modelData.icon ?? "")
       x: root.chipX(modelData)
 
       onClicked: root.chipClicked(modelData.kind, x + width / 2)
+      onRightClicked: root.chipRightClicked(modelData.kind)
       onHovered: (label, centerX) => root.chipHovered(label, centerX)
       onUnhovered: (label) => root.chipUnhovered(label)
     }

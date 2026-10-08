@@ -18,6 +18,7 @@ Rectangle {
   property string label: ""
 
   signal clicked()
+  signal rightClicked()
   signal hovered(string label, real centerX)
   signal unhovered(string label)
 
@@ -70,10 +71,11 @@ Rectangle {
   MouseArea {
     anchors.fill: parent
     hoverEnabled: true
+    acceptedButtons: Qt.LeftButton | Qt.RightButton
     cursorShape: Qt.PointingHandCursor
     onContainsMouseChanged: containsMouse
       ? chip.hovered(chip.label, chip.x + chip.width / 2)
       : chip.unhovered(chip.label)
-    onClicked: chip.clicked()
+    onClicked: (mouse) => mouse.button === Qt.RightButton ? chip.rightClicked() : chip.clicked()
   }
 }

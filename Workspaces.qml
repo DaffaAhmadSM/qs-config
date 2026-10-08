@@ -34,23 +34,35 @@ PanelWindow {
   readonly property real listWidth: root.contentWidth + 2 * root.padX
   readonly property real listHeight: 2 * root.pad + root.itemW
 
-  // Workspaces living on this monitor, keyed by id. Reading `.values` keeps
-  // the binding reactive to Hyprland workspace events.
-  readonly property var byId: {
+  // Every workspace by id, on any monitor. Reading `.values` keeps the binding
+  // reactive to Hyprland workspace events. A slot resolves against this so a
+  // number is clickable even when it lives on another monitor or has no windows.
+  readonly property var wsById: {
     const result = {}
-    const name = root.hyprMonitor?.name
     const list = Hyprland.workspaces.values
-    for (let i = 0; i < list.length; i++) {
-      const ws = list[i]
-      if (ws.monitor?.name === name)
-        result[ws.id] = ws
-    }
+    for (let i = 0; i < list.length; i++)
+      result[list[i].id] = list[i]
     return result
   }
   // The workspace currently shown on this monitor, and its slot in the panel.
   readonly property int activeId: root.hyprMonitor?.activeWorkspace?.id ?? -1
   readonly property int activeIndex: root.activeId >= 1 && root.activeId <= root.slots.length
     ? root.activeId - 1 : -1
+
+  // Switch this monitor to slot `n`: activate the existing workspace (wherever
+  // it is) or create it here, focusing this monitor first so the dispatch
+  // applies to the right one.
+  function activateSlot(n): void {
+    const ws = root.wsById[n]
+    if (ws) {
+      ws.activate()
+      return
+    }
+    const name = root.hyprMonitor?.name
+    if (name)
+      Hyprland.dispatch("focusmonitor " + name)
+    Hyprland.dispatch("workspace " + n)
+  }
 
   property bool hovered: false
   readonly property bool shown: IslandConfig.wsAlwaysShow || root.hovered
@@ -182,7 +194,7 @@ PanelWindow {
 
           required property int modelData
 
-          readonly property var ws: root.byId[modelData] ?? null
+          readonly property var ws: root.wsById[modelData] ?? null
           readonly property bool current: cell.ws !== null && cell.ws.id === root.activeId
 
           width: root.itemW
@@ -201,8 +213,7 @@ PanelWindow {
           MouseArea {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
-            onClicked: cell.ws ? cell.ws.activate()
-              : Hyprland.dispatch("workspace " + cell.modelData)
+            onClicked: root.activateSlot(cell.modelData)
           }
         }
       }
