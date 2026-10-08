@@ -20,14 +20,18 @@ PanelWindow {
 
   readonly property HyprlandMonitor hyprMonitor: Hyprland.monitorFor(root.monitor)
   readonly property var slots: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-  readonly property int pad: Math.round(IslandConfig.wsPadding * root.uiScale)
+  readonly property int pad: Math.round(IslandConfig.wsPaddingY * root.uiScale)
+  readonly property int padX: Math.round(IslandConfig.wsPaddingX * root.uiScale)
   readonly property int itemW: Math.round(IslandConfig.wsItemSize * root.uiScale)
   readonly property int gap: Math.round(IslandConfig.wsItemSpacing * root.uiScale)
   readonly property real notchTop: Math.round(IslandConfig.wsNotchTopRadius * root.uiScale)
   readonly property real notchBottom: Math.round(IslandConfig.wsNotchBottomRadius * root.uiScale)
-  readonly property real listWidth: 10 * root.pad
-    + root.slots.length * root.itemW
+  // Distance between the left edges of adjacent slots; the row and the sliding
+  // indicator both step by this.
+  readonly property real pitch: root.itemW + root.gap
+  readonly property real contentWidth: root.slots.length * root.itemW
     + (root.slots.length - 1) * root.gap
+  readonly property real listWidth: root.contentWidth + 2 * root.padX
   readonly property real listHeight: 2 * root.pad + root.itemW
 
   // Workspaces living on this monitor, keyed by id. Reading `.values` keeps
@@ -142,7 +146,7 @@ PanelWindow {
       y: root.pad
       width: root.itemW
       height: root.itemW
-      x: (root.pad * 5) + Math.max(0, root.activeIndex) * (root.itemW + root.gap)
+      x: root.padX + Math.max(0, root.activeIndex) * root.pitch
       radius: Math.round(IslandConfig.wsRadius * root.uiScale / 2)
       color: IslandConfig.accent
       opacity: root.activeIndex >= 0 ? 1 : 0
@@ -165,7 +169,9 @@ PanelWindow {
     Row {
       anchors.top: parent.top
       anchors.topMargin: root.pad
-      anchors.horizontalCenter: parent.horizontalCenter
+      // Same left origin as the indicator, so slot 0 sits under the highlight.
+      anchors.left: parent.left
+      anchors.leftMargin: root.padX
       spacing: root.gap
 
       Repeater {

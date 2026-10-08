@@ -137,11 +137,12 @@ Singleton {
   // Workspaces widget (top-left bathtub notch dropdown, one per monitor)
   property bool wsAlwaysShow: true // keep the panel open without hovering
   property int wsHoverHeight: 24 // top-left hover band that drops the panel
-  property int wsNotchTopRadius: 14 // concave fillet where the notch pinches off the top edge
+  property int wsNotchTopRadius: 19 // concave fillet where the notch pinches off the top edge
   property int wsNotchBottomRadius: 8 // convex rounding of the notch's bottom corners
-  property int wsPadding: 6
-  property int wsItemSize: 22
-  property int wsItemSpacing: 5
+  property int wsPaddingY: 6 // vertical padding above/below the number row
+  property int wsPaddingX: 30 // horizontal breathing room around the number row
+  property int wsItemSize: 16
+  property int wsItemSpacing: 9
   property int wsFontSize: 12
   property int wsRadius: 8
 
