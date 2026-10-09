@@ -58,8 +58,8 @@ Rectangle {
   border.color: bodyPress.pressed || cardHover.hovered
     ? IslandConfig.notifCardHoverBorder : IslandConfig.notifCardBorder
   border.width: 1
-  Behavior on color { ColorAnimation { duration: 160; easing.type: Easing.InOutQuad } }
-  Behavior on border.color { ColorAnimation { duration: 160; easing.type: Easing.InOutQuad } }
+  Behavior on color { ColorAnimation { duration: IslandConfig.hoverDuration; easing.type: Easing.InOutQuad } }
+  Behavior on border.color { ColorAnimation { duration: IslandConfig.hoverDuration; easing.type: Easing.InOutQuad } }
 
   implicitHeight: row.implicitHeight + 2 * root.pad
 
@@ -150,7 +150,7 @@ Rectangle {
           text: "✕"
           color: IslandConfig.foreground
           opacity: closeHover.pressed ? 0.35 : closeHover.containsMouse ? 1 : 0.55
-          Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutQuad } }
+          Behavior on opacity { NumberAnimation { duration: IslandConfig.hoverDuration; easing.type: Easing.OutQuad } }
           font.pixelSize: Math.round(IslandConfig.notifCloseSize * root.uiScale)
 
           Accessible.role: Accessible.Button
@@ -159,7 +159,7 @@ Rectangle {
           MouseArea {
             id: closeHover
             anchors.fill: parent
-            anchors.margins: -Math.round(4 * root.uiScale)
+            anchors.margins: -Math.round(IslandConfig.spacingXs * root.uiScale)
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: {
@@ -220,7 +220,7 @@ Rectangle {
       // Action buttons.
       Flow {
         width: parent.width
-        spacing: Math.round(6 * root.uiScale)
+        spacing: Math.round(IslandConfig.spacingSm * root.uiScale)
         visible: root.actionList.length > 0
 
         Repeater {
@@ -235,9 +235,9 @@ Rectangle {
             color: IslandConfig.accent
             opacity: actionHover.containsMouse ? 1: 0.5
             scale: actionHover.pressed ? 0.97 : 1
-            implicitWidth: actionLabel.implicitWidth + Math.round(16 * root.uiScale)
-            implicitHeight: actionLabel.implicitHeight + Math.round(8 * root.uiScale)
-            Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutQuad } }
+            implicitWidth: actionLabel.implicitWidth + Math.round(IslandConfig.spacingXl * root.uiScale)
+            implicitHeight: actionLabel.implicitHeight + Math.round(IslandConfig.spacingMd * root.uiScale)
+            Behavior on opacity { NumberAnimation { duration: IslandConfig.hoverDuration; easing.type: Easing.OutQuad } }
             Behavior on scale {
               NumberAnimation {
                 duration: IslandConfig.pressDuration

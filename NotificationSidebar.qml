@@ -72,7 +72,7 @@ Item {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.margins: root.pad
-        spacing: Math.round(6 * root.uiScale)
+        spacing: Math.round(IslandConfig.spacingSm * root.uiScale)
 
         Row {
           width: parent.width
@@ -99,7 +99,7 @@ Item {
             MouseArea {
               id: clearHover
               anchors.fill: parent
-              anchors.margins: -Math.round(4 * root.uiScale)
+              anchors.margins: -Math.round(IslandConfig.spacingXs * root.uiScale)
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
               onClicked: Notifications.clearAll()
@@ -239,7 +239,7 @@ Item {
                 id: chevron
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
-                width: Math.round(10 * root.uiScale)
+                width: Math.round(IslandConfig.spacingLg * root.uiScale)
                 // text: "▸"
                 rotation: row.expanded ? 90 : 0
                 Behavior on rotation {
@@ -271,11 +271,11 @@ Item {
 
               Text {
                 anchors.left: groupIcon.visible ? groupIcon.right : chevron.right
-                anchors.leftMargin: groupIcon.visible ? Math.round(6 * root.uiScale) : 0
+                anchors.leftMargin: groupIcon.visible ? Math.round(IslandConfig.spacingSm * root.uiScale) : 0
                 anchors.verticalCenter: parent.verticalCenter
                 width: parent.width - x - groupCount.width - groupClear.width
-                  - (row.expanded ? groupToggle.width + Math.round(6 * root.uiScale) : 0)
-                  - 2 * Math.round(6 * root.uiScale)
+                  - (row.expanded ? groupToggle.width + Math.round(IslandConfig.spacingSm * root.uiScale) : 0)
+                  - 2 * Math.round(IslandConfig.spacingSm * root.uiScale)
                 elide: Text.ElideRight
                 text: row.appName
                 color: IslandConfig.foreground
@@ -286,7 +286,7 @@ Item {
               Text {
                 id: groupCount
                 anchors.right: row.expanded ? groupToggle.left : groupClear.left
-                anchors.rightMargin: Math.round(6 * root.uiScale)
+                anchors.rightMargin: Math.round(IslandConfig.spacingSm * root.uiScale)
                 anchors.verticalCenter: parent.verticalCenter
                 text: row.groupSize
                 color: IslandConfig.foreground
@@ -297,7 +297,7 @@ Item {
               Text {
                 id: groupToggle
                 anchors.right: groupClear.left
-                anchors.rightMargin: Math.round(6 * root.uiScale)
+                anchors.rightMargin: Math.round(IslandConfig.spacingSm * root.uiScale)
                 anchors.verticalCenter: parent.verticalCenter
                 visible: row.expanded
                 text: qsTr("Group")
@@ -311,7 +311,7 @@ Item {
                 MouseArea {
                   id: groupToggleHover
                   anchors.fill: parent
-                  anchors.margins: -Math.round(4 * root.uiScale)
+                  anchors.margins: -Math.round(IslandConfig.spacingXs * root.uiScale)
                   hoverEnabled: true
                   cursorShape: Qt.PointingHandCursor
                   onClicked: Notifications.toggleGroup(row.appName)
@@ -333,7 +333,7 @@ Item {
                 MouseArea {
                   id: groupClearHover
                   anchors.fill: parent
-                  anchors.margins: -Math.round(4 * root.uiScale)
+                  anchors.margins: -Math.round(IslandConfig.spacingXs * root.uiScale)
                   hoverEnabled: true
                   cursorShape: Qt.PointingHandCursor
                   onClicked: Notifications.dismissGroup(row.appName)

@@ -9,7 +9,7 @@ Column {
 
   required property real uiScale
 
-  spacing: Math.round(2 * root.uiScale)
+  spacing: Math.round(IslandConfig.spacingXxs * root.uiScale)
 
   Text {
     anchors.horizontalCenter: parent.horizontalCenter

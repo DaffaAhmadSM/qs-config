@@ -29,7 +29,7 @@ Column {
 
     MouseArea {
       anchors.fill: parent
-      anchors.margins: -Math.round(6 * root.uiScale)
+      anchors.margins: -Math.round(IslandConfig.spacingSm * root.uiScale)
       enabled: control.available
       cursorShape: control.available ? Qt.PointingHandCursor : Qt.ArrowCursor
       onClicked: control.activated()

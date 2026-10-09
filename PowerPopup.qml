@@ -94,7 +94,7 @@ PopupWindow {
             Image {
               id: rowIcon
               anchors.left: parent.left
-              anchors.leftMargin: Math.round(8 * root.uiScale)
+              anchors.leftMargin: Math.round(IslandConfig.spacingMd * root.uiScale)
               anchors.verticalCenter: parent.verticalCenter
               source: row.modelData.icon
               sourceSize: Qt.size(Math.round(IslandConfig.powerIconSize * root.uiScale),
@@ -106,7 +106,7 @@ PopupWindow {
 
             Text {
               anchors.left: rowIcon.right
-              anchors.leftMargin: Math.round(10 * root.uiScale)
+              anchors.leftMargin: Math.round(IslandConfig.spacingLg * root.uiScale)
               anchors.verticalCenter: parent.verticalCenter
               text: row.modelData.label
               color: IslandConfig.foreground
@@ -146,10 +146,10 @@ PopupWindow {
 
         Row {
           anchors.horizontalCenter: parent.horizontalCenter
-          spacing: Math.round(10 * root.uiScale)
+          spacing: Math.round(IslandConfig.spacingLg * root.uiScale)
 
           Item {
-            width: Math.round(72 * root.uiScale)
+            width: Math.round(IslandConfig.powerConfirmWidth * root.uiScale)
             height: root.rowH
 
             Accessible.role: Accessible.Button
@@ -180,7 +180,7 @@ PopupWindow {
           }
 
           Item {
-            width: Math.round(72 * root.uiScale)
+            width: Math.round(IslandConfig.powerConfirmWidth * root.uiScale)
             height: root.rowH
 
             Accessible.role: Accessible.Button

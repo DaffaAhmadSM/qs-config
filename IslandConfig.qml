@@ -17,6 +17,14 @@ Singleton {
   property int radiusExpanded: 26
   property int topMargin: 2
 
+  // Spacing scale (px). Multiply by uiScale in components.
+  property int spacingXxs: 2
+  property int spacingXs: 4
+  property int spacingSm: 6
+  property int spacingMd: 8
+  property int spacingLg: 10
+  property int spacingXl: 16
+
   // Island notch (bathtub) background instead of the floating pill
   property bool islandNotch: true
   property int islandNotchTopRadius: 22 // concave fillet where the notch pinches off the top edge
@@ -64,6 +72,7 @@ Singleton {
   property string powerBubbleSide: "left" // "left" | "right"
   property string powerChipIcon: "assets/power.svg"
   property int powerPopupWidth: 160
+  property int powerConfirmWidth: 72
   property real powerRowHeight: 30
   property int powerRowSpacing: 2
   property int powerIconSize: 16
@@ -127,6 +136,7 @@ Singleton {
 
   // Motion (ms)
   property int animationDuration: 240
+  property int hoverDuration: 160 // colour / opacity hover fades
   // Movement (slide / height / rotation / scale) collapses to 0 with reduceMotion;
   // opacity and colour fades keep animationDuration. Qt has no
   // prefers-reduced-motion query, this flag is the manual equivalent.
